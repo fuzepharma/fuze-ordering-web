@@ -19,10 +19,48 @@
 (function () {
   "use strict";
 
+  // Which backend to talk to. Default is production. Opening the site with
+  // ?env=test switches to the sandbox (TEST_API_URL) and sticks (localStorage)
+  // until ?env=prod. This keeps test clicks off the live sheet.
+  function fuzeEnv() {
+    try {
+      var p = new URLSearchParams(location.search).get("env");
+      if (p === "test" || p === "prod") {
+        try { localStorage.setItem("fuzeEnv", p); } catch (e) {}
+        return p;
+      }
+      var s = localStorage.getItem("fuzeEnv");
+      if (s === "test" || s === "prod") return s;
+    } catch (e) {}
+    return "prod";
+  }
+  window.FUZE_ENV = fuzeEnv();
+
   function apiUrl() {
     var cfg = window.FUZE_CONFIG || {};
-    if (!cfg.API_URL) throw new Error("FUZE_CONFIG.API_URL is not set (config.js).");
-    return cfg.API_URL;
+    var url = (fuzeEnv() === "test") ? (cfg.TEST_API_URL || cfg.API_URL) : cfg.API_URL;
+    if (!url) throw new Error("No API URL set for this environment (config.js).");
+    return url;
+  }
+
+  // A hard-to-miss banner so you always know when you're on the sandbox.
+  function showEnvBanner() {
+    if (fuzeEnv() !== "test") return;
+    try {
+      if (document.getElementById("fuze-test-banner")) return;
+      var b = document.createElement("div");
+      b.id = "fuze-test-banner";
+      b.textContent = "🧪 TEST MODE — this is the sandbox sheet, not live data. Orders here are NOT real.";
+      b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;" +
+        "background:#b45309;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;" +
+        "text-align:center;padding:7px 12px;box-shadow:0 1px 4px rgba(0,0,0,.3);";
+      (document.body || document.documentElement).appendChild(b);
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", showEnvBanner);
+  } else {
+    showEnvBanner();
   }
 
   // One network call to the JSON router. text/plain keeps it a "simple request"
