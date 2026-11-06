@@ -1,0 +1,2729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- injected for GitHub Pages: provides google.script.run over fetch -->
+  <script src="config.js"></script>
+  <script src="gas-shim.js"></script>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fuze Pharma Clinic Portal - D E M O</title>
+  <style>
+    /* No @import needed — Iowan Old Style and the system sans stack are
+       OS-provided (Apple system fonts), matching the admin dashboard's
+       type choices exactly. Removed the Open Sans/Playfair Display
+       Google Fonts import since nothing references them anymore. */
+    /* =========================================================
+       DESIGN TOKENS — single source of truth (Phase 1, Aug 2026)
+       Consolidated from the former dark :root + FUZEPHARMA.COM light
+       :root, which had defined the same token names twice (dark values
+       then overridden by light). Light theme is the only theme; the
+       dead dark values were removed. Adds the radius / type / spacing /
+       elevation scales the rest of the stylesheet now routes through.
+       ========================================================= */
+    :root {
+      /* Type: serif for display, sans for everything else */
+      --sans: var(--sans);
+      --serif: var(--serif);
+      /* Ink & surface */
+      --ink: #111D27;
+      --muted: #566776;
+      --muted-2: #8095A6;
+      --navy-950: #F7F9FA;
+      --navy-900: #ffffff;
+      --navy-850: #EEF3F6;
+      --navy-800: #E5EBF0;
+      --navy-750: #E9F0F6;
+      --line: #DBE3EB;
+      --line-strong: #BFCDD9;
+      /* Brand + semantic */
+      --blue: #5885AC;
+      --blue-bright: #345979;
+      --accent: #5f91b7;
+      --green: #2F9E6E;
+      --gold: #B7791F;
+      --danger: #B42318;
+      --site-slate: #566776;
+      --site-taupe: #566776;
+      --site-soft: #E9F0F6;
+      /* Radius — 3 tiers only */
+      --r-sm: 10px;   /* inputs, buttons, chips, small tiles */
+      --r-md: 16px;   /* cards, panels, modals */
+      --r-full: 999px;/* pills, badges */
+      /* Elevation */
+      --elev-1: 0 8px 24px rgba(42, 52, 61, .06);
+      --elev-2: 0 18px 48px rgba(17, 29, 39, .10);
+      --shadow: var(--elev-2);
+      /* Spacing scale (4pt grid) */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 24px;
+      --space-6: 32px;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--navy-950); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(46, 112, 165, .16), transparent 30rem),
+        linear-gradient(140deg, #050d17 0%, #081522 55%, #06101b 100%);
+      color: var(--ink);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--blue-bright);
+      outline-offset: 2px;
+    }
+
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .eyebrow {
+      color: var(--blue-bright);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .brand {
+      align-items: center;
+      color: #8cb7da;
+      display: inline-flex;
+      letter-spacing: .025em;
+      width: fit-content;
+    }
+    .brand-word, .brand-pharma {
+      font-family: "Arial Narrow", "Helvetica Neue", sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: .045em;
+      line-height: 1;
+    }
+    .brand-pharma { margin-left: 10px; }
+    .brand-vial {
+      border: 2px solid #8cb7da;
+      border-radius: 2px 2px 7px 7px;
+      display: block;
+      height: 37px;
+      margin: 4px 3px 0;
+      overflow: hidden;
+      position: relative;
+      width: 22px;
+    }
+    .brand-vial:before {
+      background: var(--navy-900);
+      border: 2px solid #8cb7da;
+      border-radius: 50%;
+      content: "";
+      height: 6px;
+      left: -2px;
+      position: absolute;
+      top: -4px;
+      width: 22px;
+      z-index: 2;
+    }
+    .brand-vial span {
+      background: #4b8abb;
+      bottom: 2px;
+      height: 67%;
+      left: 2px;
+      position: absolute;
+      right: 2px;
+    }
+    .brand.compact .brand-word, .brand.compact .brand-pharma { font-size: 22px; }
+    .brand.compact .brand-pharma { margin-left: 6px; }
+    .brand.compact .brand-vial { border-width: 1px; height: 20px; margin: 2px 1px 0; width: 12px; }
+    .brand.compact .brand-vial:before { border-width: 1px; height: 3px; left: -1px; top: -2px; width: 12px; }
+
+    .entry-page {
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    .entry-page:before {
+      background-image:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: 46px 46px;
+      content: "";
+      inset: 0;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+      pointer-events: none;
+      position: absolute;
+    }
+    .entry-shell {
+      align-items: center;
+      display: grid;
+      gap: clamp(3rem, 8vw, 8rem);
+      grid-template-columns: minmax(0, 1.12fr) minmax(380px, .88fr);
+      margin: 0 auto;
+      max-width: 1240px;
+      min-height: 100vh;
+      padding: 64px 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .entry-story { display: flex; flex-direction: column; justify-content: center; min-height: 570px; }
+    .entry-copy { margin-top: 84px; max-width: 690px; }
+    .entry-copy h1 {
+      font-family: var(--serif);
+      font-size: clamp(4rem, 7vw, 6.6rem);
+      font-weight: 400;
+      letter-spacing: -.055em;
+      line-height: .93;
+      margin: 22px 0 28px;
+    }
+    .entry-copy p { color: #a9bacb; font-size: 18px; line-height: 1.75; margin: 0; max-width: 610px; }
+    .trust-row {
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: auto;
+      padding-top: 30px;
+    }
+    .trust-row span { color: var(--muted); display: flex; flex-direction: column; font-size: 14px; gap: 5px; }
+    .trust-row b { color: #dbe8f5; font-family: var(--serif); font-size: 20px; font-weight: 400; }
+
+    .entry-card {
+      backdrop-filter: blur(18px);
+      background: linear-gradient(160deg, rgba(16,34,52,.95), rgba(8,20,33,.96));
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow);
+      padding: clamp(30px, 4vw, 48px);
+      position: relative;
+    }
+    .entry-card:before {
+      background: linear-gradient(90deg, transparent, rgba(109,183,235,.75), transparent);
+      content: "";
+      height: 1px;
+      left: 15%;
+      position: absolute;
+      right: 15%;
+      top: -1px;
+    }
+    .entry-card h2 { font-family: var(--serif); font-size: 39px; font-weight: 400; letter-spacing: -.035em; margin: 12px 0 9px; }
+    .entry-card > p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 30px; }
+
+    label { color: #c7d3df; display: block; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    input, textarea, select {
+      background: rgba(4, 12, 21, .72);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-sm);
+      color: var(--ink);
+      min-height: 48px;
+      padding: 12px 14px;
+      width: 100%;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    input::placeholder, textarea::placeholder { color: #63758a; }
+    input[readonly] { background: rgba(255,255,255,.025); color: #b9c8d7; }
+
+    .primary-btn, .secondary-btn, .ghost-btn, .danger-btn, .tab-btn, .add-btn, .remove-btn {
+      border: 0;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .primary-btn:hover, .secondary-btn:hover, .add-btn:hover { transform: translateY(-1px); }
+    .primary-btn {
+      background: linear-gradient(135deg, #4e91c2, #2b6e9f);
+      box-shadow: 0 12px 28px rgba(34, 105, 157, .24);
+      color: white;
+      min-height: 50px;
+      padding: 0 20px;
+      width: 100%;
+    }
+    .primary-btn:disabled {
+      background: var(--line-strong);
+      box-shadow: none;
+      color: var(--ink);
+      cursor: not-allowed;
+      transform: none;
+    }
+    .secondary-btn, .add-btn {
+      background: rgba(94,159,212,.13);
+      border: 1px solid rgba(117,184,236,.28);
+      color: #a9d6f5;
+      min-height: 42px;
+      padding: 0 16px;
+    }
+    .ghost-btn {
+      background: transparent;
+      border: 1px solid var(--line-strong);
+      color: #c9d7e5;
+      min-height: 40px;
+      padding: 0 15px;
+    }
+    .danger-btn {
+      background: rgba(255,129,123,.1);
+      color: var(--danger);
+      height: 34px;
+      width: 34px;
+    }
+    .remove-btn {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      min-height: 40px;
+      padding: 0 15px;
+      border-radius: var(--r-sm);
+    }
+    .status { color: var(--muted); font-size: 14px; line-height: 1.5; min-height: 20px; margin-top: 15px; }
+    .status.error { color: var(--danger); }
+    .status.success { color: var(--green); }
+    .entry-divider {
+      align-items: center;
+      color: #fff;
+      display: flex;
+      font-size: 14px;
+      font-weight: 800;
+      gap: 12px;
+      letter-spacing: .12em;
+      margin: 25px 0;
+      text-transform: uppercase;
+    }
+    .entry-divider:before, .entry-divider:after { background: var(--line); content: ""; flex: 1; height: 1px; }
+    .sales-link { color: var(--blue-bright); display: block; font-size: 14px; text-align: center; text-decoration: none; }
+
+    .portal { min-height: 100vh; }
+    .topbar {
+      align-items: center;
+      backdrop-filter: blur(18px);
+      background: rgba(4, 11, 19, .83);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      height: 72px;
+      justify-content: space-between;
+      padding: 0 30px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .topbar-actions { align-items: center; display: flex; gap: 12px; }
+    .clinic-badge { color: var(--muted); font-size: 14px; text-align: right; }
+    .clinic-badge b { color: var(--ink); display: block; font-size: 14px; }
+    .portal-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: calc(100vh - 72px); }
+    .sidebar {
+      background: rgba(5, 15, 25, .72);
+      border-right: 1px solid var(--line);
+      padding: 28px 18px;
+    }
+    .sidebar-nav { display: grid; gap: 7px; position: sticky; top: 100px; }
+    .tab-btn {
+      background: transparent;
+      color: var(--muted);
+      padding: 13px 14px;
+      text-align: left;
+      width: 100%;
+    }
+    .tab-btn.active { background: rgba(94,159,212,.13); color: #cfe9fc; }
+    .content { margin: 0 auto; max-width: 1440px; padding: 34px; width: 100%; }
+    .page-head { align-items: flex-end; display: flex; justify-content: space-between; margin-bottom: 28px; }
+    .page-head-actions { display: flex; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
+    .page-head h1 { font-family: var(--serif); font-size: clamp(2.2rem, 4vw, 3.8rem); font-weight: 400; letter-spacing: -.045em; margin: 7px 0 0; }
+    .page-head p { color: var(--muted); margin: 9px 0 0; }
+
+    .stats { display: grid; gap: 15px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 20px; }
+    .card {
+      background: linear-gradient(155deg, rgba(14,31,48,.93), rgba(7,19,31,.95));
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-shadow: 0 16px 42px rgba(0,0,0,.18);
+    }
+    .stat-card { min-height: 132px; padding: 22px; }
+    .stat-card strong { display: block; font-family: var(--serif); font-size: 31px; font-weight: 400; margin: 14px 0 7px; }
+    .stat-card small { color: var(--muted); }
+    .grid-2 { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel { padding: 23px; }
+    .panel-head { align-items: center; display: flex; justify-content: space-between; margin-bottom: 18px; }
+    .panel-head h2 { font-family: var(--serif); font-size: 25px; font-weight: 400; margin: 0; }
+    .profile-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-grid .wide { grid-column: 1 / -1; }
+    .req { color: #e05252; }
+    .order-fulfillment { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+    .order-fulfillment label { font-size: 14px; font-weight: 600; }
+    .order-fulfillment select { width: 100%; }
+    .fulfillment-note { display: none; font-size: 14px; color: #b06a00; background: rgba(255,193,7,0.12); border-radius: var(--r-sm); padding: 8px 10px; }
+    .locations-list { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 14px; }
+    .location-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.12); border-radius: var(--r-sm); }
+    .location-row small { display: block; color: #666; margin-top: 2px; }
+    .location-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .location-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1); }
+    .profile-actions {
+      align-items: center;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 18px;
+      padding-top: 18px;
+    }
+    .profile-actions .primary-btn { min-height: 42px; width: auto; }
+    .profile-section-title {
+      border-top: 1px solid var(--line);
+      color: var(--blue-bright);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      margin-top: 6px;
+      padding-top: 18px;
+      text-transform: uppercase;
+    }
+    .profile-status { margin: 14px 0 0; min-height: 20px; }
+    .message-box {
+      background: rgba(94,159,212,.08);
+      border: 1px solid rgba(117,184,236,.18);
+      border-radius: var(--r-sm);
+      color: #bdd0e1;
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 18px;
+      padding: 15px 17px;
+      white-space: pre-line;
+    }
+    .message-box.specials {
+      background: rgba(101,211,168,.12);
+      border-color: rgba(101,211,168,.35);
+      color: #65d3a8;
+    }
+
+    .recent-list, .history-list { display: grid; gap: 10px; }
+    .order-row {
+      align-items: center;
+      background: rgba(255,255,255,.025);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr auto auto;
+      padding: 14px 15px;
+    }
+    .order-row strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .order-row small { color: var(--muted); }
+    .order-total { color: #dceaf7; font-family: var(--serif); font-size: 18px; white-space: nowrap; }
+
+    .order-layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) 440px; }
+    .catalog { min-width: 0; }
+    .catalog-tools { display: flex; gap: 10px; margin-bottom: 16px; }
+    .catalog-tools input { flex: 1; }
+    .catalog-tools select { width: 190px; }
+    .product-grid { display: flex; flex-direction: column; gap: 10px; }
+    .product-card { align-items: center; display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; padding: 14px 16px; }
+    .product-main { flex: 1; min-width: 0; }
+    .product-actions { align-items: center; display: flex; flex-shrink: 0; gap: 16px; }
+    .product-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .product-card h3 { font-size: 16px; line-height: 1.3; margin: 6px 0 3px; }
+    .product-card p { color: var(--muted); font-size: 14px; margin: 0; }
+    .product-price { font-family: var(--serif); font-size: 22px; white-space: nowrap; }
+    .product-price s { color: var(--muted-2); font-family: inherit; font-size: 14px; margin-left: 7px; }
+    .product-card .add-btn { margin-top: 0; white-space: nowrap; width: auto; }
+    .chip {
+      border: 1px solid rgba(101,172,225,.3);
+      border-radius: var(--r-full);
+      color: #84c2ef;
+      display: inline-flex;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      padding: 6px 8px;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+    .chip.sale { border-color: rgba(101,211,168,.25); color: var(--green); }
+    .chip.bulk { border-color: rgba(101,172,225,.3); color: #84c2ef; }
+    .cart {
+      align-self: start;
+      max-height: calc(100vh - 110px);
+      overflow-y: auto;
+      padding: 21px;
+      position: sticky;
+      top: 94px;
+    }
+    .cart-items { display: grid; gap: 11px; margin: 16px 0; }
+    .empty-cart { color: var(--muted); font-size: 14px; line-height: 1.6; padding: 22px 0; text-align: center; }
+    .cart-reassure { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 8px 0 0; text-align: center; }
+    /* Keep the total + Submit action visible while the cart body scrolls
+       (desktop only — on phones the bottom-sheet + sticky cart bar handle it,
+       and .cart is position:static there so a sticky footer would misbehave). */
+    @media (min-width: 851px) {
+      .cart-submit {
+        position: sticky;
+        bottom: 0;
+        margin-top: 4px;
+        padding: 14px 0 4px;
+        background: #fff;
+        border-top: 1px solid var(--line);
+        box-shadow: 0 -10px 20px rgba(17, 29, 39, .06);
+      }
+      .cart-submit .pricing-summary { margin-top: 0; }
+    }
+    .cart-item { background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px; }
+    .cart-item-top { align-items: start; display: flex; gap: 8px; justify-content: space-between; }
+    .cart-item strong { font-size: 15px; line-height: 1.35; }
+    .cart-item small { color: var(--muted); display: block; font-size: 14px; margin-top: 5px; }
+    .cart-item-controls { align-items: center; display: flex; gap: 10px; margin-top: 12px; }
+    .cart-item-controls input { font-size: 15px; min-height: 40px; padding: 7px 9px; width: 76px; }
+    .cart-item-price { color: #dceaf7; font-size: 15px; margin-left: auto; }
+    .pricing-summary { border-top: 1px solid var(--line); display: grid; gap: 9px; margin-top: 18px; padding-top: 16px; }
+    .pricing-line { color: var(--muted); display: flex; font-size: 14px; justify-content: space-between; }
+    .pricing-line.total { border-top: 1px solid var(--line); color: var(--ink); font-size: 15px; font-weight: 800; margin-top: 3px; padding-top: 12px; }
+    .shipping-options { display: grid; gap: 8px; margin: 15px 0; }
+    .cart-bulk-pricing {
+      display: grid;
+      gap: 10px;
+      margin: 4px 0 15px;
+    }
+    .cart-bulk-panel {
+      background: rgba(94,159,212,.07);
+      border: 1px solid rgba(117,184,236,.2);
+      border-radius: var(--r-sm);
+      padding: 13px;
+    }
+    .cart-bulk-title {
+      color: #dceaf7;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.4;
+      margin-bottom: 9px;
+    }
+    .cart-bulk-label {
+      color: var(--green);
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .cart-bulk-tiers {
+      display: grid;
+      gap: 7px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .cart-bulk-tier {
+      background: rgba(255,255,255,.025);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      padding: 8px 9px;
+    }
+    .cart-bulk-tier strong {
+      color: #dceaf7;
+      display: block;
+      font-size: 14px;
+    }
+    .cart-bulk-tier.active {
+      background: rgba(101,211,168,.1);
+      border-color: rgba(101,211,168,.36);
+      color: #a9e6cd;
+    }
+    .cart-bulk-next {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      margin-top: 9px;
+    }
+    .cart-bulk-next strong { color: var(--gold); }
+    .shipping-option {
+      align-items: center;
+      background: rgba(255,255,255,.02);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: flex;
+      font-size: 14px;
+      gap: 9px;
+      margin: 0;
+      padding: 11px;
+    }
+    .shipping-option input { min-height: auto; width: auto; }
+    .minimum-note { color: var(--gold); font-size: 14px; margin: 12px 0; }
+    .success-screen { margin: 60px auto; max-width: 640px; padding: 48px; text-align: center; }
+    .success-screen h2 { font-family: var(--serif); font-size: 44px; font-weight: 400; margin: 8px 0 12px; }
+    .success-screen p { color: var(--muted); line-height: 1.65; }
+
+    @media (max-width: 1100px) {
+      .entry-shell { gap: 3rem; grid-template-columns: 1fr 390px; }
+      .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 850px) {
+      .entry-shell { display: block; padding: 38px 22px; }
+      .entry-story { min-height: auto; }
+      .entry-copy { margin: 55px 0; }
+      .entry-card { margin-bottom: 30px; }
+      .portal-layout { display: block; }
+      .sidebar { border-bottom: 1px solid var(--line); border-right: 0; overflow-x: auto; padding: 10px 16px; position: sticky; top: 72px; z-index: 15; }
+      .sidebar-nav { display: flex; position: static; width: max-content; }
+      .tab-btn { white-space: nowrap; width: auto; }
+      .order-layout { grid-template-columns: 1fr; }
+      .cart { position: static; max-height: none; overflow: visible; }
+    }
+    @media (max-width: 620px) {
+      .topbar { padding: 0 16px; }
+      .clinic-badge { display: none; }
+      .content { padding: 24px 16px; }
+      .entry-copy h1 { font-size: 3.6rem; }
+      .trust-row, .stats, .grid-2, .profile-grid, .product-grid { grid-template-columns: 1fr; }
+      .profile-grid .wide { grid-column: auto; }
+      .catalog-tools { display: grid; }
+      .catalog-tools select { width: 100%; }
+      .page-head { align-items: start; display: grid; gap: 14px; }
+      .order-row { grid-template-columns: 1fr auto; }
+      .order-row .secondary-btn { grid-column: 1 / -1; }
+    }
+
+    /* =========================================================
+       FUZEPHARMA.COM BRAND THEME
+       Light editorial styling based on the live company website.
+       ========================================================= */
+    /* (light :root merged into the canonical DESIGN TOKENS block above) */
+
+    html {
+      background: #f7f7f7;
+    }
+
+    body {
+      background:
+        linear-gradient(180deg, #ffffff 0, #ffffff 240px, #f7f7f7 240px, #f7f7f7 100%);
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+
+    .muted { color: var(--muted); }
+    .eyebrow {
+      color: var(--site-taupe);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .16em;
+    }
+
+    .brand,
+    .brand-word,
+    .brand-pharma {
+      color: #5f91b7;
+    }
+    .brand-word,
+    .brand-pharma {
+      font-family: "Arial Narrow", "Helvetica Neue", sans-serif;
+      font-weight: 800;
+    }
+    .brand-vial {
+      border-color: #5f91b7;
+    }
+    .brand-vial:before {
+      background: #fff;
+      border-color: #5f91b7;
+    }
+    .brand-vial span {
+      background: #5f91b7;
+    }
+
+    .entry-page {
+      background:
+        linear-gradient(90deg, #ffffff 0%, #ffffff 58%, #f3f3f3 58%, #f3f3f3 100%);
+    }
+    .entry-page:before {
+      display: none;
+    }
+    .entry-shell {
+      gap: clamp(3rem, 7vw, 7rem);
+      max-width: 1280px;
+    }
+    .entry-copy {
+      margin-top: 72px;
+    }
+    .entry-copy h1,
+    .entry-card h2,
+    .page-head h1,
+    .panel-head h2,
+    .stat-card strong,
+    .product-price,
+    .order-total,
+    .success-screen h2 {
+      color: var(--site-slate);
+      font-family: var(--serif);
+      font-weight: 400;
+    }
+    .entry-copy h1 {
+      font-size: clamp(4rem, 7vw, 6.2rem);
+      letter-spacing: -.035em;
+      line-height: .98;
+    }
+    .entry-copy p {
+      color: #5e5e5e;
+      line-height: 1.8;
+    }
+    .trust-row {
+      border-top-color: var(--line);
+    }
+    .trust-row span {
+      color: var(--muted);
+    }
+    .trust-row b {
+      color: var(--site-slate);
+      font-family: var(--serif);
+    }
+
+    .entry-card {
+      backdrop-filter: none;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow);
+    }
+    .entry-card:before {
+      background: #5f91b7;
+      left: 0;
+      right: 0;
+    }
+    .entry-card > p {
+      color: var(--muted);
+    }
+    .entry-divider {
+      color: var(--site-taupe);
+    }
+
+    label {
+      color: #51575c;
+      font-weight: 600;
+    }
+    input,
+    textarea,
+    select {
+      background: #ffffff;
+      border-color: var(--line-strong);
+      border-radius: var(--r-sm);
+      color: #30363b;
+    }
+    input::placeholder,
+    textarea::placeholder {
+      color: #9a9fa4;
+    }
+    input[readonly] {
+      background: #f5f6f7;
+      color: #5f666c;
+    }
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible {
+      outline-color: #5f91b7;
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .ghost-btn,
+    .danger-btn,
+    .tab-btn,
+    .add-btn {
+      border-radius: var(--r-sm);
+      letter-spacing: .02em;
+    }
+    .primary-btn {
+      background: #5f91b7;
+      box-shadow: none;
+      color: #fff;
+    }
+    .primary-btn:hover {
+      background: #4e7fa5;
+    }
+    .secondary-btn,
+    .add-btn {
+      background: #edf3f7;
+      border-color: #b8cfdf;
+      color: #426f91;
+    }
+    .ghost-btn {
+      background: #fff;
+      border-color: var(--line-strong);
+      color: #5c6670;
+    }
+    .danger-btn {
+      background: #fff1f1;
+      color: var(--danger);
+    }
+    .sales-link {
+      background: #edf3f7;
+      border: 1px solid #b8cfdf;
+      border-radius: var(--r-sm);
+      color: #426f91;
+      font-weight: 700;
+      min-height: 46px;
+      padding: 13px 16px;
+      transition: background .18s ease, border-color .18s ease;
+    }
+    .sales-link:hover {
+      background: #e2edf4;
+      border-color: #9fbed2;
+    }
+    .status {
+      color: var(--muted);
+    }
+
+    .topbar {
+      backdrop-filter: none;
+      background: rgba(255,255,255,.97);
+      border-bottom-color: var(--line);
+      box-shadow: 0 3px 18px rgba(42,52,61,.05);
+    }
+    .clinic-badge {
+      color: var(--muted);
+    }
+    .clinic-badge b {
+      color: var(--site-slate);
+    }
+    .portal {
+      background: #f7f7f7;
+    }
+    .portal-layout {
+      background: #f7f7f7;
+    }
+    .sidebar {
+      background: #ffffff;
+      border-color: var(--line);
+    }
+    .tab-btn {
+      color: #777d82;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background: #edf3f7;
+      color: #426f91;
+    }
+    .page-head p {
+      color: var(--muted);
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-shadow: var(--elev-1);
+    }
+    .stat-card small,
+    .product-card p,
+    .order-row small,
+    .cart-item small,
+    .pricing-line,
+    .empty-cart,
+    .success-screen p {
+      color: var(--muted);
+    }
+    .message-box {
+      background: #edf3f7;
+      border-color: #d0e0eb;
+      border-radius: var(--r-sm);
+      color: #526777;
+    }
+    .message-box.specials {
+      background: #e7f7f0;
+      border-color: #b9e6cf;
+      color: #1f7a51;
+    }
+    .order-row,
+    .cart-item,
+    .shipping-option {
+      background: #fafafa;
+      border-color: var(--line);
+      border-radius: var(--r-sm);
+    }
+    .order-total,
+    .cart-item-price,
+    .pricing-line.total,
+    .cart-bulk-title,
+    .cart-bulk-tier strong {
+      color: var(--site-slate);
+    }
+
+    .product-card h3 {
+      color: #3e454b;
+    }
+    .chip {
+      border-color: #aac7da;
+      border-radius: var(--r-full);
+      color: #527f9f;
+    }
+    .chip.category {
+      background: #f5f3f3;
+      border-color: #d8cece;
+      color: var(--site-taupe);
+    }
+    .chip.bulk {
+      background: #edf3f7;
+      border-color: #b8cfdf;
+      color: #426f91;
+    }
+    .chip.sale {
+      background: #eef6f3;
+      border-color: #b9d7cd;
+      color: var(--green);
+    }
+    .cart-bulk-panel {
+      background: #edf3f7;
+      border-color: #d0e0eb;
+      border-radius: var(--r-sm);
+    }
+    .cart-bulk-label {
+      color: var(--green);
+    }
+    .cart-bulk-tier {
+      background: #ffffff;
+      border-color: #d8e1e7;
+      border-radius: var(--r-sm);
+      color: var(--muted);
+    }
+    .cart-bulk-tier.active {
+      background: #eef6f3;
+      border-color: #a9ccbf;
+      color: #4e7f72;
+    }
+    .cart-bulk-next {
+      color: var(--muted);
+    }
+    .cart-bulk-next strong,
+    .minimum-note {
+      color: var(--site-taupe);
+    }
+    .pricing-summary,
+    .pricing-line.total {
+      border-color: var(--line);
+    }
+
+    @media (max-width: 850px) {
+      body {
+        background: #f7f7f7;
+      }
+      .entry-page {
+        background: linear-gradient(180deg, #ffffff 0, #ffffff 48%, #f3f3f3 48%, #f3f3f3 100%);
+      }
+      .entry-copy {
+        margin: 48px 0;
+      }
+      .entry-card {
+        border-radius: var(--r-md);
+      }
+      .sidebar {
+        background: rgba(255,255,255,.98);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .entry-shell {
+        padding: 30px 18px;
+      }
+      .entry-copy h1 {
+        font-size: 3.25rem;
+      }
+      .entry-copy p {
+        font-size: 16px;
+      }
+      .brand-word,
+      .brand-pharma {
+        font-size: 34px;
+      }
+      .brand-vial {
+        height: 31px;
+        width: 19px;
+      }
+      .brand-vial:before {
+        width: 19px;
+      }
+      .content {
+        padding: 24px 14px;
+      }
+      .card {
+        border-radius: var(--r-md);
+      }
+      .message-box,
+      .cart-bulk-panel {
+        border-radius: var(--r-sm);
+      }
+    }
+
+    /* Real fuzepharma.com logo, replacing the old text/CSS wordmark
+       (the .brand/.brand-word/.brand-vial/.brand-pharma rules above are
+       now unused but left in place, same treatment as other superseded
+       styling in this codebase). Also corrects the remaining hardcoded
+       brand-blue values that didn't route through --blue/--blue-bright
+       (already fixed at the :root level above). */
+    .brand-logo { display: block; height: auto; }
+    .entry-logo { width: 100%; max-width: 230px; }
+    .topbar-logo { width: 100%; max-width: 150px; }
+
+    .entry-card:before { background: var(--blue); }
+    :focus-visible { outline-color: var(--blue) !important; }
+    .primary-btn { background: var(--blue-bright); }
+    .primary-btn:hover { background: #264764; }
+    .tab-btn.active,
+    .sales-link,
+    .chip.bulk { color: var(--blue-bright); }
+
+    /* CTA ACCENT — brand blue used for "Add to order"/"Reorder" too,
+       matching the current live system. */
+    .secondary-btn,
+    .add-btn {
+      background: var(--blue-bright);
+      border-color: var(--blue-bright);
+      color: #fff;
+    }
+    .secondary-btn:hover,
+    .add-btn:hover {
+      background: #264764;
+    }
+
+    /* BUTTON ROUNDING — buttons rounded to match the approved mockup
+       instead of the sharp 2px editorial-print corners above. */
+    .primary-btn,
+    .secondary-btn,
+    .ghost-btn,
+    .tab-btn { border-radius: var(--r-sm); }
+    .add-btn { border-radius: var(--r-full); }
+    .danger-btn { border-radius: 50%; }
+
+    /* PORTAL — fully light theme. Previously the topbar + sidebar carried
+       a dark "chrome" treatment while .content stayed light; this makes
+       the topbar + sidebar light too, matching the rest of the portal. */
+    .portal {
+      --ink: #111D27;
+      --muted: #566776;
+      --muted-2: #5F7488;
+      --line: #DBE3EB;
+      --line-strong: #BFCDD9;
+      --blue: #5885AC;
+      --blue-bright: #345979;
+      --green: #1F7A54;
+      --gold: #8A5A14;
+      --danger: #B42318;
+      --site-slate: #566776;
+      --site-taupe: #566776;
+      --site-soft: #E9F0F6;
+      background: #F7F9FA;
+    }
+    .portal-layout { background: #F7F9FA; }
+
+    .portal input,
+    .portal select,
+    .portal textarea {
+      background: #ffffff;
+      border-color: #DBE3EB;
+      color: #111D27;
+    }
+    .portal input[readonly] { background: #EEF3F6; color: #566776; }
+    .portal input[readonly].has-value { color: var(--ink); font-weight: 600; }
+
+    /* =========================================================
+       PHASE 2 — MOBILE ORDERING (Aug 2026)
+       Sticky cart bar + bottom-sheet cart on phones, in-place
+       product steppers, a one-tap reorder card, and a bulk-tier
+       progress bar. The desktop two-column order layout is left
+       untouched; everything here is additive and mostly scoped
+       to the <=850px breakpoint.
+       ========================================================= */
+
+    /* One-tap reorder card (all viewports, top of catalog) */
+    .reorder-card {
+      align-items: center; display: flex; gap: 12px; width: 100%;
+      text-align: left; cursor: pointer; margin-bottom: 16px;
+      padding: 13px 15px; border: 1px solid #cfe0ee; border-radius: var(--r-md);
+      background: linear-gradient(135deg, #eaf2f8, #f5f9fc);
+      transition: transform .14s ease, box-shadow .14s ease; font: inherit;
+    }
+    .reorder-card:hover { box-shadow: var(--elev-1, 0 8px 24px rgba(42,52,61,.06)); }
+    .reorder-card:active { transform: scale(.994); }
+    .reorder-card .reorder-ico {
+      flex: none; width: 38px; height: 38px; border-radius: var(--r-full);
+      background: #fff; border: 1px solid #cfe0ee; color: var(--blue-bright);
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .reorder-card .reorder-txt { flex: 1; min-width: 0; }
+    .reorder-card .reorder-txt b { display: block; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+    .reorder-card .reorder-txt small { color: var(--muted); font-size: 14px; }
+    .reorder-card .reorder-go { flex: none; font-size: 14px; font-weight: 700; color: var(--blue-bright); white-space: nowrap; }
+
+    /* In-place quantity stepper on product cards */
+    .qty-stepper {
+      display: inline-flex; align-items: stretch; height: 42px;
+      border: 1px solid var(--blue-bright); border-radius: var(--r-sm); overflow: hidden;
+    }
+    .qty-stepper button {
+      width: 40px; border: 0; background: #fff; color: var(--blue-bright);
+      font-size: 20px; font-weight: 600; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qty-stepper button:hover { background: #eef4f9; }
+    .qty-stepper .qty-val {
+      min-width: 34px; display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; color: var(--ink);
+      border-left: 1px solid #d8e3ee; border-right: 1px solid #d8e3ee;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Bulk-tier progress bar */
+    .bulk-progress { margin-top: 10px; }
+    .bulk-progress .track { height: 7px; border-radius: var(--r-full); background: #d7e6de; overflow: hidden; }
+    .bulk-progress .track i { display: block; height: 100%; border-radius: var(--r-full); background: linear-gradient(90deg, #2F9E6E, #37b57f); transition: width .4s ease; }
+
+    /* Sticky cart bar + bottom sheet — phone only */
+    .cart-bar, .cart-scrim { display: none; }
+    @media (max-width: 850px) {
+      .content { padding-bottom: 96px; }
+
+      .cart-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        position: fixed; left: 12px; right: 12px; bottom: 14px; z-index: 55;
+        padding: 13px 16px; border: 0; border-radius: var(--r-md); cursor: pointer;
+        background: var(--blue-bright); color: #fff; font: inherit;
+        box-shadow: 0 16px 38px -14px rgba(17,29,39,.55);
+        transform: translateY(160%); transition: transform .34s cubic-bezier(.22,1,.36,1);
+      }
+      .cart-bar.show { transform: translateY(0); }
+      .cart-bar .cart-bar-left { display: flex; align-items: center; gap: 11px; }
+      .cart-bar .cart-bar-count {
+        background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.32);
+        border-radius: var(--r-full); min-width: 26px; height: 26px; padding: 0 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+      }
+      .cart-bar .cart-bar-label { font-size: 14px; font-weight: 600; text-align: left; line-height: 1.15; }
+      .cart-bar .cart-bar-label small { display: block; font-size: 14px; opacity: .72; font-weight: 500; }
+      .cart-bar .cart-bar-right { display: flex; align-items: center; gap: 9px; font-family: var(--serif); font-size: 19px; font-weight: 400; font-variant-numeric: tabular-nums; }
+      .cart-bar .cart-bar-chev { font-family: var(--sans); font-size: 14px; opacity: .82; }
+
+      .cart-scrim {
+        display: block; position: fixed; inset: 0; z-index: 58;
+        background: rgba(9,18,28,.44); opacity: 0; visibility: hidden;
+        transition: opacity .3s ease;
+      }
+      .cart-scrim.show { opacity: 1; visibility: visible; }
+
+      aside.cart {
+        position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 60;
+        margin: 0; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+        border-radius: 22px 22px 0 0; padding-top: 8px;
+        transform: translateY(110%); transition: transform .38s cubic-bezier(.22,1,.36,1);
+        box-shadow: 0 -18px 46px -18px rgba(17,29,39,.5);
+      }
+      aside.cart.sheet-open { transform: translateY(0); }
+      aside.cart::before {
+        content: ""; display: block; width: 38px; height: 5px; margin: 4px auto 12px;
+        border-radius: var(--r-full); background: var(--line-strong);
+      }
+      .sheet-close { display: block; }
+    }
+    .sheet-close {
+      display: none; position: absolute; top: 12px; right: 14px;
+      background: none; border: 0; color: var(--blue-bright);
+      font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; padding: 6px 8px; z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <section id="entryPage" class="entry-page">
+    <div class="entry-shell">
+      <div class="entry-story">
+        <img class="brand-logo entry-logo" src="data:image/png;base64,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" alt="Fuze Pharma">
+        <div class="entry-copy">
+          <span class="chip">Private ordering portal</span>
+          <h1>Clinic ordering, elevated.</h1>
+          <p>Access live product pricing, reorder in seconds, and review your complete Fuze Pharma order history in one secure place.</p>
+        </div>
+        <div class="trust-row">
+          <span><b>3–5 days</b> Standard delivery</span>
+          <span><b>Free</b> Normal shipping</span>
+          <span><b>3 vials</b> Order minimum <span style="opacity:.75;">(5 for Oral Strips)</span></span>
+        </div>
+      </div>
+
+      <div class="entry-card">
+        <div id="loginFormBlock">
+          <span class="eyebrow">Clinic access</span>
+          <h2>Welcome back.</h2>
+          <p>Enter your clinic email and password.</p>
+          <form id="lookupForm">
+            <label for="lookupEmail">Clinic email address</label>
+            <input id="lookupEmail" type="email" placeholder="name@clinic.com" autocomplete="email" required>
+            <label for="lookupPassword" style="margin-top:12px">Password</label>
+            <input id="lookupPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+            <button id="lookupButton" class="primary-btn" type="submit" style="margin-top:14px">Open clinic portal</button>
+            <div id="lookupStatus" class="status" aria-live="polite"></div>
+          </form>
+          <div class="entry-divider">Fuze Pharma team</div>
+          <a
+            class="sales-link"
+            href="dashboard.html"
+            target="_top"
+            rel="noopener noreferrer"
+          >Sales Rep Dashboard →</a>
+        </div>
+
+        <div id="passwordSetupBlock" class="hidden">
+          <span class="eyebrow">Set your password</span>
+          <h2>Create a new password.</h2>
+          <p>Choose a password you haven't used before. It must be at least 8 characters.</p>
+          <form id="passwordSetupForm">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" placeholder="New password" autocomplete="new-password" required minlength="8">
+            <label for="confirmNewPassword" style="margin-top:12px">Confirm new password</label>
+            <input id="confirmNewPassword" type="password" placeholder="Confirm new password" autocomplete="new-password" required minlength="8">
+            <button id="passwordSetupButton" class="primary-btn" type="submit" style="margin-top:14px">Save password</button>
+            <div id="passwordSetupStatus" class="status" aria-live="polite"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="portal" class="portal hidden">
+    <header class="topbar">
+      <img class="brand-logo topbar-logo" src="data:image/png;base64,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" alt="Fuze Pharma">
+      <div class="topbar-actions">
+        <div class="clinic-badge"><b id="topClinicName"></b><span id="topClinicId"></span></div>
+        <button class="ghost-btn" type="button" onclick="logoutClinic()">Sign out</button>
+      </div>
+    </header>
+
+    <div class="portal-layout">
+      <aside class="sidebar">
+        <nav class="sidebar-nav" aria-label="Clinic portal">
+          <button class="tab-btn active" data-tab="overview" type="button">Overview</button>
+          <button class="tab-btn" data-tab="order" type="button">New order</button>
+          <button class="tab-btn" data-tab="history" type="button">Order history</button>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="overviewTab" class="tab-panel">
+          <div class="page-head">
+            <div><span class="eyebrow">Clinic portal</span><h1 id="welcomeClinic">Welcome back.</h1><p>Everything you need to place and review Fuze Pharma orders.</p></div>
+            <div class="page-head-actions">
+              <button id="overviewReorderBtn" class="secondary-btn hidden" style="width:auto" type="button" onclick="reorderLast()">Reorder last order</button>
+              <button class="primary-btn" style="width:auto" type="button" onclick="showTab('order')">Start a new order</button>
+            </div>
+          </div>
+          <div id="topMessage" class="message-box hidden"></div>
+          <div class="stats">
+            <article class="card stat-card"><span class="eyebrow">Total orders</span><strong id="statOrders">0</strong><small>Complete order history</small></article>
+            <article class="card stat-card"><span class="eyebrow">Last order</span><strong id="statLastOrder">—</strong><small id="statLastDate">No orders yet</small></article>
+            <article class="card stat-card"><span class="eyebrow">Representative</span><strong id="statRep">—</strong><small>Your Fuze Pharma contact</small></article>
+          </div>
+          <div class="grid-2">
+            <article class="card panel">
+              <div class="panel-head">
+                <h2>Clinic profile</h2>
+                <button id="editProfileButton" class="ghost-btn" type="button" onclick="beginProfileEdit()">Edit details</button>
+              </div>
+              <div class="profile-grid">
+                <div class="wide"><label>Clinic name</label><input id="profileClinic" readonly></div>
+                <div><label>Clinic ID</label><input id="profileId" readonly></div>
+                <div><label for="profilePhone">Phone</label><input id="profilePhone" type="tel" maxlength="40" autocomplete="tel" readonly></div>
+              </div>
+              <p class="muted" style="margin:12px 0 0;">Shipping addresses are managed under <strong>Shipping locations</strong> below.</p>
+              <div id="profileStatus" class="status profile-status" aria-live="polite"></div>
+              <div id="profileActions" class="profile-actions hidden">
+                <button id="cancelProfileButton" class="ghost-btn" type="button" onclick="cancelProfileEdit()">Cancel</button>
+                <button id="saveProfileButton" class="primary-btn" type="button" onclick="saveClinicProfile()">Save changes</button>
+              </div>
+            </article>
+            <article class="card panel">
+              <div class="panel-head"><h2>Recent orders</h2><button class="ghost-btn" type="button" onclick="showTab('history')">View all</button></div>
+              <div id="recentOrders" class="recent-list"></div>
+            </article>
+          </div>
+
+          <article class="card panel" style="margin-top:20px;">
+            <div class="panel-head">
+              <h2>Shipping locations</h2>
+              <button class="ghost-btn" type="button" onclick="openLocationForm()">Add location</button>
+            </div>
+            <p class="muted" style="margin-top:0;">Locations you can ship orders to. Choose one at checkout.</p>
+            <div id="locationsList" class="locations-list"></div>
+            <div id="locationFormWrap" class="location-form hidden">
+              <div class="profile-grid">
+                <input type="hidden" id="locationFormId">
+                <div class="wide"><label for="locName">Location name <span class="req">*</span></label><input id="locName" maxlength="100" placeholder="e.g. Main office"></div>
+                <div class="wide"><label for="locAddr1">Address line 1 <span class="req">*</span></label><input id="locAddr1" maxlength="180"></div>
+                <div class="wide"><label for="locAddr2">Address line 2 <span class="muted">(optional)</span></label><input id="locAddr2" maxlength="120"></div>
+                <div class="wide"><label for="locCity">City <span class="req">*</span></label><input id="locCity" maxlength="100"></div>
+                <div><label for="locState">State <span class="req">*</span></label><input id="locState" maxlength="60"></div>
+                <div><label for="locZip">ZIP <span class="req">*</span></label><input id="locZip" maxlength="20"></div>
+              </div>
+              <div id="locationFormStatus" class="status" aria-live="polite"></div>
+              <div class="profile-actions">
+                <button class="ghost-btn" type="button" onclick="closeLocationForm()">Cancel</button>
+                <button class="primary-btn" type="button" onclick="saveLocation()">Save location</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="orderTab" class="tab-panel hidden">
+          <div class="page-head">
+            <div><span class="eyebrow">Live catalog</span><h1>Build your order.</h1><p>Current pricing and product-specific bulk tiers are applied automatically.</p></div>
+          </div>
+          <div id="specialsMessage" class="message-box hidden"></div>
+          <div class="order-layout">
+            <div class="catalog">
+              <div class="catalog-tools">
+                <input id="productSearch" type="search" placeholder="Search products, strengths or vial sizes">
+                <select id="categoryFilter" aria-label="Filter product category"></select>
+              </div>
+              <button type="button" id="reorderCard" class="reorder-card hidden" onclick="reorderLast()">
+                <span class="reorder-ico">&#8635;</span>
+                <span class="reorder-txt"><b>Reorder your last order</b><small id="reorderSummary"></small></span>
+                <span class="reorder-go">Add all &rarr;</span>
+              </button>
+              <div id="productGrid" class="product-grid"></div>
+            </div>
+
+            <aside class="card cart">
+              <button type="button" class="sheet-close" onclick="closeCartSheet()">Done</button>
+              <div class="panel-head"><h2>Your order</h2><span id="cartCount" class="chip">0 items</span></div>
+              <div id="cartItems" class="cart-items"></div>
+              <div id="cartBulkPricing" class="cart-bulk-pricing hidden"></div>
+              <div class="order-fulfillment">
+                <label for="orderLocation">Ship to location <span class="req">*</span></label>
+                <select id="orderLocation" onchange="onFulfillmentChange()"></select>
+                <label for="orderCard">Pay with card <span class="req">*</span></label>
+                <select id="orderCard" onchange="onFulfillmentChange()"></select>
+                <div id="fulfillmentNote" class="fulfillment-note"></div>
+              </div>
+              <div class="shipping-options">
+                <label class="shipping-option"><input type="radio" name="shipping" value="Normal" checked onchange="renderCart()"> Normal shipping — FREE</label>
+                <label class="shipping-option"><input type="radio" name="shipping" value="RUSH" onchange="renderCart()"> Rush shipping — $30.00</label>
+              </div>
+              <label for="orderNotes">Delivery notes (optional)</label>
+              <textarea id="orderNotes" placeholder="Business hours or special delivery instructions"></textarea>
+              <div class="minimum-note">Minimum of 3 vials per order (5 for Oral Strips).</div>
+              <div class="cart-submit">
+                <div class="pricing-summary">
+                  <div class="pricing-line"><span>Subtotal</span><span id="cartSubtotal">$0.00</span></div>
+                  <div class="pricing-line"><span>Savings</span><span id="cartSavings">$0.00</span></div>
+                  <div class="pricing-line"><span>Shipping</span><span id="cartShipping">$0.00</span></div>
+                  <div class="pricing-line total"><span>Total</span><span id="cartTotal">$0.00</span></div>
+                </div>
+                <button id="submitButton" class="primary-btn" type="button" onclick="submitOrder()" disabled>Submit order</button>
+                <p id="submitHint" class="minimum-note hidden" role="status" aria-live="polite"></p>
+                <p class="cart-reassure">No payment is taken here — your Fuze Pharma rep handles billing separately.</p>
+                <div id="orderStatus" class="status" aria-live="polite"></div>
+              </div>
+            </aside>
+          </div>
+
+          <div id="cartScrim" class="cart-scrim" onclick="closeCartSheet()"></div>
+          <button type="button" id="cartBar" class="cart-bar" onclick="openCartSheet()">
+            <span class="cart-bar-left">
+              <span id="cartBarCount" class="cart-bar-count">0</span>
+              <span class="cart-bar-label">Review order<small id="cartBarItems">0 items</small></span>
+            </span>
+            <span class="cart-bar-right"><span id="cartBarTotal">$0.00</span><span class="cart-bar-chev">&#9650;</span></span>
+          </button>
+        </section>
+
+        <section id="historyTab" class="tab-panel hidden">
+          <div class="page-head">
+            <div><span class="eyebrow">Clinic records</span><h1>Order history.</h1><p>Review prior orders and add the same products to a new order.</p></div>
+          </div>
+          <div id="historyOrders" class="history-list"></div>
+        </section>
+
+        <section id="successTab" class="tab-panel hidden">
+          <article class="card success-screen">
+            <span class="eyebrow">Order received</span>
+            <h2>Thank you.</h2>
+            <p id="successMessage">Your order has been logged successfully. The Fuze Pharma team will handle payment separately.</p>
+            <button class="primary-btn" style="width:auto" type="button" onclick="finishSuccess()">Return to overview</button>
+          </article>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <script>
+    var state = {
+      email: '',
+      token: '',
+      clinic: null,
+      products: [],
+      orders: [],
+      messages: {},
+      specials: [],
+      cart: {},
+      locations: [],
+      cards: [],
+      activeTab: 'overview'
+    };
+
+    document.getElementById('lookupForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      lookupClinic();
+    });
+    document.getElementById('passwordSetupForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      submitPasswordSetup();
+    });
+    document.getElementById('productSearch').addEventListener('input', renderProducts);
+    document.getElementById('categoryFilter').addEventListener('change', renderProducts);
+    document.querySelectorAll('.tab-btn').forEach(function(button) {
+      button.addEventListener('click', function() { showTab(button.dataset.tab); });
+    });
+
+    function money(value) {
+      return Number(value || 0).toLocaleString('en-US', {
+        style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function setStatus(id, message, tone) {
+      var el = document.getElementById(id);
+      el.textContent = message || '';
+      el.className = 'status' + (tone ? ' ' + tone : '');
+    }
+
+    // A1 — keep the clinic logged in across a page refresh. The auth token is
+    // valid server-side for 6 hours; we stash it (with the email) in
+    // sessionStorage so a reload can silently resume rather than dumping the
+    // clinic back to the login screen. sessionStorage (not localStorage)
+    // clears on tab close, which is the safer default on a shared clinic
+    // machine. Every access is guarded — sessionStorage can throw in some
+    // sandboxed/blocked contexts.
+    var PORTAL_SESSION_KEY = 'fuzePortalSession';
+    function persistSession() {
+      try {
+        if (state.token) {
+          sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
+            token: state.token,
+            email: state.email || ''
+          }));
+        }
+      } catch (e) {}
+    }
+    function loadSession() {
+      try {
+        var raw = sessionStorage.getItem(PORTAL_SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function clearSession() {
+      try { sessionStorage.removeItem(PORTAL_SESSION_KEY); } catch (e) {}
+    }
+
+    // B4 — persist the in-progress cart across a refresh, in the same store and
+    // lifetime as the session token (sessionStorage, cleared on tab close). We
+    // store product KEYS and quantities only — never a price. Prices, sale
+    // flags and bulk tiers are re-derived from the live catalog on load, so a
+    // stale cart automatically picks up current pricing. Notes, the shipping
+    // choice and the location/card selections ride along in the same blob.
+    // persistCart() is armed only once a fresh login has cleared any old cart
+    // or a resumed session has had its chance to restore — otherwise the first
+    // empty renderCart() on load would clobber a saved cart.
+    var PORTAL_CART_KEY = 'fuzePortalCart';
+    var cartPersistArmed = false;
+    var pendingCartRestore = null;
+    var pendingFulfillmentRestore = null;
+
+    function persistCart() {
+      if (!cartPersistArmed) return;
+      try {
+        var items = {};
+        Object.keys(state.cart).forEach(function(key) {
+          items[key] = state.cart[key].quantity;
+        });
+        var shippingEl = document.querySelector('input[name="shipping"]:checked');
+        var notesEl = document.getElementById('orderNotes');
+        var locEl = document.getElementById('orderLocation');
+        var cardEl = document.getElementById('orderCard');
+        sessionStorage.setItem(PORTAL_CART_KEY, JSON.stringify({
+          v: 1,
+          items: items,
+          notes: notesEl ? notesEl.value : '',
+          shipping: shippingEl ? shippingEl.value : 'Normal',
+          locationId: locEl ? locEl.value : '',
+          cardId: cardEl ? cardEl.value : ''
+        }));
+      } catch (e) {}
+    }
+    function loadStoredCart() {
+      try {
+        var raw = sessionStorage.getItem(PORTAL_CART_KEY);
+        var parsed = raw ? JSON.parse(raw) : null;
+        return parsed && parsed.items && typeof parsed.items === 'object' ? parsed : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function clearCart() {
+      try { sessionStorage.removeItem(PORTAL_CART_KEY); } catch (e) {}
+    }
+
+    // Rehydrate a saved cart once the live catalog is in. Unresolved product
+    // keys (catalog changed since) are dropped with a note, mirroring the
+    // unavailable-product handling in quickReorder. Always arms persistence at
+    // the end so subsequent edits are saved.
+    function restorePendingCart() {
+      var saved = pendingCartRestore;
+      pendingCartRestore = null;
+      if (saved && state.products && state.products.length) {
+        var dropped = [];
+        Object.keys(saved.items).forEach(function(key) {
+          var qty = Math.max(0, parseInt(saved.items[key], 10) || 0);
+          if (!qty) return;
+          var product = findProduct(key);
+          if (product) {
+            state.cart[key] = { product: product, quantity: qty };
+          } else {
+            dropped.push(key);
+          }
+        });
+        var notesEl = document.getElementById('orderNotes');
+        if (notesEl && saved.notes) notesEl.value = saved.notes;
+        var shipInput = document.querySelector(
+          'input[name="shipping"][value="' + (saved.shipping === 'RUSH' ? 'RUSH' : 'Normal') + '"]'
+        );
+        if (shipInput) shipInput.checked = true;
+        pendingFulfillmentRestore = { locationId: saved.locationId || '', cardId: saved.cardId || '' };
+        applyPendingFulfillmentRestore();
+        if (dropped.length) {
+          setStatus('orderStatus',
+            'Some items from your saved order are no longer in the catalog and were left out. Review your order before submitting.',
+            'error');
+        }
+      }
+      cartPersistArmed = true;
+      renderCart();
+    }
+
+    function applyPendingFulfillmentRestore() {
+      if (!pendingFulfillmentRestore) return;
+      var locEl = document.getElementById('orderLocation');
+      var cardEl = document.getElementById('orderCard');
+      var locations = state.locations || [];
+      var cards = state.cards || [];
+      var applied = false;
+      if (locEl && pendingFulfillmentRestore.locationId &&
+          locations.some(function(l){ return l.locationId === pendingFulfillmentRestore.locationId; })) {
+        locEl.value = pendingFulfillmentRestore.locationId;
+        applied = true;
+      }
+      if (cardEl && pendingFulfillmentRestore.cardId &&
+          cards.some(function(c){ return c.cardId === pendingFulfillmentRestore.cardId; })) {
+        cardEl.value = pendingFulfillmentRestore.cardId;
+        applied = true;
+      }
+      // Keep it around until the lists have loaded and had a chance to match;
+      // clear only once we've actually applied something or the lists are in.
+      if (applied || locations.length || cards.length) {
+        pendingFulfillmentRestore = null;
+      }
+    }
+
+    function productKey(product) {
+      return [product.name, product.strength, product.vial].join('|').toLowerCase();
+    }
+
+    function productDisplay(product) {
+      return [product.name, product.strength, product.vial].filter(Boolean).join(' · ');
+    }
+
+    function categoryFor(product) {
+      return String(product.category || '').trim() || 'Other';
+    }
+
+    var ORAL_STRIPS_CATEGORY = 'Oral Strips';
+    var ORAL_STRIPS_MINIMUM = 5;
+    var STANDARD_MINIMUM = 3;
+
+    function isOralStripsCategory(category) {
+      return String(category || '').trim().toLowerCase() === ORAL_STRIPS_CATEGORY.toLowerCase();
+    }
+
+    // B2 — one definition of "does the cart clear the order minimums", used by
+    // both renderCart() (to enable/disable submit and drive the hint) and
+    // submitOrder() (as a defense-in-depth guard). Oral Strips carry their own
+    // 5-unit minimum; every other product shares the 3-vial minimum, measured
+    // on the non-Oral pool only.
+    function cartMinimumStatus() {
+      var oralStripsQty = 0;
+      var otherQty = 0;
+      Object.keys(state.cart).forEach(function(key) {
+        var item = state.cart[key];
+        if (isOralStripsCategory(categoryFor(item.product))) {
+          oralStripsQty += item.quantity;
+        } else {
+          otherQty += item.quantity;
+        }
+      });
+      var oralShort = oralStripsQty > 0 && oralStripsQty < ORAL_STRIPS_MINIMUM;
+      var otherShort = otherQty > 0 && otherQty < STANDARD_MINIMUM;
+      var hasItems = oralStripsQty > 0 || otherQty > 0;
+      return {
+        oralStripsQty: oralStripsQty,
+        otherQty: otherQty,
+        hasItems: hasItems,
+        oralShort: oralShort,
+        otherShort: otherShort,
+        ok: hasItems && !oralShort && !otherShort
+      };
+    }
+
+    function lookupClinic() {
+      var email = document.getElementById('lookupEmail').value.trim().toLowerCase();
+      var password = document.getElementById('lookupPassword').value;
+      if (!email || !password) return;
+      state.email = email;
+      document.getElementById('lookupButton').disabled = true;
+      setStatus('lookupStatus', 'Opening your clinic portal…');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          document.getElementById('lookupButton').disabled = false;
+          if (!data || data.ok !== true) {
+            setStatus('lookupStatus', data && data.message ? data.message : 'Incorrect email or password.', 'error');
+            return;
+          }
+
+          if (data.mustSetPassword === true) {
+            state.clinic = data.clinic || {};
+            state.token = data.token || '';
+            setStatus('lookupStatus', '');
+            document.getElementById('loginFormBlock').classList.add('hidden');
+            document.getElementById('passwordSetupBlock').classList.remove('hidden');
+            document.getElementById('newPassword').focus();
+            return;
+          }
+
+          state.clinic = data.clinic || {};
+          state.token = data.token || '';
+          state.products = [];
+          state.orders = [];
+          state.messages = {};
+          state.specials = [];
+          // Fresh explicit login — start with an empty cart, drop any cart
+          // saved by a prior session, and arm persistence from here on.
+          state.cart = {};
+          clearCart();
+          pendingCartRestore = null;
+          cartPersistArmed = true;
+          hydratePortal();
+          document.getElementById('productGrid').innerHTML =
+            '<div class="message-box">Loading live products and pricing…</div>';
+          document.getElementById('recentOrders').innerHTML =
+            '<div class="message-box">Loading recent orders…</div>';
+          document.getElementById('historyOrders').innerHTML =
+            '<div class="message-box">Loading order history…</div>';
+          loadPortalDetails();
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('lookupButton').disabled = false;
+          setStatus('lookupStatus', error && error.message ? error.message : 'Unable to open the clinic portal.', 'error');
+        })
+        .clinicPortalLogin(email, password);
+    }
+
+    function submitPasswordSetup() {
+      var newPassword = document.getElementById('newPassword').value;
+      var confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+      if (newPassword.length < 8) {
+        setStatus('passwordSetupStatus', 'Your new password must be at least 8 characters.', 'error');
+        return;
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        setStatus('passwordSetupStatus', 'Passwords do not match.', 'error');
+        return;
+      }
+
+      document.getElementById('passwordSetupButton').disabled = true;
+      setStatus('passwordSetupStatus', 'Saving your new password…');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          document.getElementById('passwordSetupButton').disabled = false;
+          if (!data || data.ok !== true) {
+            setStatus('passwordSetupStatus', data && data.message ? data.message : 'Could not save password.', 'error');
+            return;
+          }
+          state.clinic = data.clinic || {};
+          state.token = data.token || '';
+          state.products = [];
+          state.orders = [];
+          state.messages = {};
+          state.specials = [];
+          state.cart = {};
+          clearCart();
+          pendingCartRestore = null;
+          cartPersistArmed = true;
+          document.getElementById('passwordSetupBlock').classList.add('hidden');
+          document.getElementById('loginFormBlock').classList.remove('hidden');
+          document.getElementById('passwordSetupForm').reset();
+          hydratePortal();
+          document.getElementById('productGrid').innerHTML =
+            '<div class="message-box">Loading live products and pricing…</div>';
+          document.getElementById('recentOrders').innerHTML =
+            '<div class="message-box">Loading recent orders…</div>';
+          document.getElementById('historyOrders').innerHTML =
+            '<div class="message-box">Loading order history…</div>';
+          loadPortalDetails();
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('passwordSetupButton').disabled = false;
+          setStatus('passwordSetupStatus', error && error.message ? error.message : 'Could not save password.', 'error');
+        })
+        .setClinicPortalPassword(state.token, newPassword);
+    }
+
+    function hydratePortal() {
+      persistSession();
+      var clinic = state.clinic;
+      document.getElementById('topClinicName').textContent = clinic.clinicName || 'Clinic';
+      document.getElementById('topClinicId').textContent = clinic.clinicId || '';
+      document.getElementById('welcomeClinic').textContent = 'Welcome, ' + (clinic.clinicName || 'Clinic') + '.';
+      renderClinicProfile();
+      setProfileEditMode(false);
+      setStatus('profileStatus', '');
+      renderOrderSummary();
+      renderPortalMessages();
+      buildCategories();
+      renderProducts();
+      renderRecentOrders();
+      renderHistory();
+      renderCart();
+      loadFulfillment();
+      document.getElementById('entryPage').classList.add('hidden');
+      document.getElementById('portal').classList.remove('hidden');
+      showTab('overview');
+      window.scrollTo(0, 0);
+    }
+
+    function renderClinicProfile() {
+      var clinic = state.clinic || {};
+      document.getElementById('profileClinic').value = clinic.clinicName || '';
+      document.getElementById('profileId').value = clinic.clinicId || '';
+      document.getElementById('profilePhone').value = clinic.phone || '';
+    }
+
+    function setProfileEditMode(isEditing) {
+      [
+        'profilePhone'
+      ].forEach(function(id) {
+        document.getElementById(id).readOnly = !isEditing;
+      });
+
+      document.getElementById('editProfileButton').classList.toggle('hidden', isEditing);
+      document.getElementById('profileActions').classList.toggle('hidden', !isEditing);
+
+      if (isEditing) {
+        setStatus('profileStatus', '');
+        document.getElementById('profilePhone').focus();
+      }
+    }
+
+    function beginProfileEdit() {
+      renderClinicProfile();
+      setProfileEditMode(true);
+    }
+
+    function cancelProfileEdit() {
+      renderClinicProfile();
+      setProfileEditMode(false);
+      setStatus('profileStatus', '');
+    }
+
+    function saveClinicProfile() {
+      var clinic = state.clinic || {};
+      var phone = document.getElementById('profilePhone').value.trim();
+
+      document.getElementById('saveProfileButton').disabled = true;
+      document.getElementById('cancelProfileButton').disabled = true;
+      setStatus('profileStatus', 'Saving clinic details…');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          document.getElementById('saveProfileButton').disabled = false;
+          document.getElementById('cancelProfileButton').disabled = false;
+
+          if (!response || response.ok !== true || !response.clinic) {
+            setStatus('profileStatus', 'The clinic details could not be saved.', 'error');
+            return;
+          }
+
+          state.clinic = response.clinic;
+          renderClinicProfile();
+          setProfileEditMode(false);
+          setStatus('profileStatus', response.message || 'Clinic details updated.', 'success');
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('saveProfileButton').disabled = false;
+          document.getElementById('cancelProfileButton').disabled = false;
+          setStatus(
+            'profileStatus',
+            error && error.message ? error.message : 'The clinic details could not be saved.',
+            'error'
+          );
+        })
+        .updateClinicPortalContactInfo(
+          state.token,
+          clinic.clinicId || '',
+          { phone: phone }
+        );
+    }
+
+    function renderOrderSummary() {
+      var clinic = state.clinic || {};
+      document.getElementById('statOrders').textContent = state.orders.length;
+      document.getElementById('statLastOrder').textContent = state.orders.length ? state.orders[0].orderNumber : '—';
+      document.getElementById('statLastDate').textContent = state.orders.length ? state.orders[0].orderDate : 'No orders yet';
+      document.getElementById('statRep').textContent = clinic.salesperson || 'Fuze Pharma';
+      var reorderBtn = document.getElementById('overviewReorderBtn');
+      if (reorderBtn) reorderBtn.classList.toggle('hidden', state.orders.length === 0);
+    }
+
+    function renderPortalMessages() {
+      var topMessage = document.getElementById('topMessage');
+      topMessage.textContent = state.messages.top || '';
+      topMessage.classList.toggle('hidden', !state.messages.top);
+
+      var specials = document.getElementById('specialsMessage');
+      specials.innerHTML = state.specials.length
+        ? '<strong>Current specials</strong><br>' + state.specials.map(function(item) {
+            return escapeHtml([item.productName, item.strength, item.vial].filter(Boolean).join(' · ')) + ' — ' + money(item.price);
+          }).join('<br>')
+        : '';
+      specials.classList.add('specials');
+      specials.classList.toggle('hidden', !state.specials.length);
+    }
+
+    function loadPortalDetails() {
+      loadCatalog();
+      loadOrders();
+    }
+
+    // B3 — the catalog and order-history loads are separately named so a
+    // failure can be retried in place instead of stranding the clinic on an
+    // error string that only a full re-login clears.
+    function loadErrorBox(message, retryFn) {
+      return '<div class="message-box" role="alert">' +
+        escapeHtml(message) +
+        '<br><button class="secondary-btn" type="button" style="margin-top:10px" onclick="' +
+        retryFn + '()">Try again</button></div>';
+    }
+
+    function loadCatalog() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || data.ok !== true) {
+            document.getElementById('productGrid').innerHTML =
+              loadErrorBox(data && data.message ? data.message : 'Unable to load products.', 'retryCatalogLoad');
+            return;
+          }
+          state.products = Array.isArray(data.products) ? data.products : [];
+          state.messages = data.messages || {};
+          state.specials = Array.isArray(data.specials) ? data.specials : [];
+          renderPortalMessages();
+          buildCategories();
+          renderProducts();
+          // The live catalog is in — safe to rehydrate a saved cart now.
+          restorePendingCart();
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('productGrid').innerHTML =
+            loadErrorBox(error && error.message ? error.message : 'Unable to load products.', 'retryCatalogLoad');
+        })
+        .getClinicPortalCatalogForClinic(state.token, (state.clinic && state.clinic.clinicId) || '');
+    }
+
+    function retryCatalogLoad() {
+      document.getElementById('productGrid').innerHTML =
+        '<div class="message-box">Loading live products and pricing…</div>';
+      loadCatalog();
+    }
+
+    function loadOrders() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || data.ok !== true) {
+            var box = loadErrorBox(data && data.message ? data.message : 'Unable to load order history.', 'retryOrdersLoad');
+            document.getElementById('recentOrders').innerHTML = box;
+            document.getElementById('historyOrders').innerHTML = box;
+            return;
+          }
+          state.orders = Array.isArray(data.orders) ? data.orders : [];
+          renderOrderSummary();
+          renderRecentOrders();
+          renderHistory();
+        })
+        .withFailureHandler(function(error) {
+          var box = loadErrorBox(error && error.message ? error.message : 'Unable to load order history.', 'retryOrdersLoad');
+          document.getElementById('recentOrders').innerHTML = box;
+          document.getElementById('historyOrders').innerHTML = box;
+        })
+        .getClinicPortalOrdersV2(state.token, state.clinic.clinicId || '', 50);
+    }
+
+    function retryOrdersLoad() {
+      document.getElementById('recentOrders').innerHTML =
+        '<div class="message-box">Loading recent orders…</div>';
+      document.getElementById('historyOrders').innerHTML =
+        '<div class="message-box">Loading order history…</div>';
+      loadOrders();
+    }
+
+    function buildCategories() {
+      var categories = ['All'];
+      state.products.forEach(function(product) {
+        var category = categoryFor(product);
+        if (categories.indexOf(category) === -1) categories.push(category);
+      });
+      document.getElementById('categoryFilter').innerHTML = categories.map(function(category) {
+        return '<option value="' + escapeHtml(category) + '">' + escapeHtml(category) + '</option>';
+      }).join('');
+    }
+
+    function showTab(tab) {
+      state.activeTab = tab;
+      ['overview','order','history','success'].forEach(function(name) {
+        document.getElementById(name + 'Tab').classList.toggle('hidden', name !== tab);
+      });
+      document.querySelectorAll('.tab-btn').forEach(function(button) {
+        button.classList.toggle('active', button.dataset.tab === tab);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderProducts() {
+      var term = document.getElementById('productSearch').value.trim().toLowerCase();
+      var category = document.getElementById('categoryFilter').value || 'All';
+      var visible = state.products.filter(function(product) {
+        var text = productDisplay(product).toLowerCase();
+        return (!term || text.indexOf(term) !== -1) &&
+          (category === 'All' || categoryFor(product) === category);
+      });
+
+      document.getElementById('productGrid').innerHTML = visible.map(function(product) {
+        var key = productKey(product);
+        var sale = product.onSale &&
+          Number(product.salePrice) > 0 &&
+          Number(product.salePrice) < Number(product.price);
+        var bulk = Array.isArray(product.bulkPricing) && product.bulkPricing.some(function(rule) {
+          return Number(rule.minQty || rule.minimumQuantity || 0) > 0 &&
+            Number(rule.unitPrice || rule.price || 0) > 0;
+        });
+        var price = sale ? Number(product.salePrice) : Number(product.price);
+        var inCart = state.cart[key] ? state.cart[key].quantity : 0;
+        var keyArg = 'decodeURIComponent(\'' + encodeURIComponent(key) + '\')';
+        var control = inCart > 0
+          ? '<div class="qty-stepper">' +
+              '<button type="button" aria-label="Decrease" onclick="stepProduct(' + keyArg + ',-1)">&#8722;</button>' +
+              '<span class="qty-val">' + inCart + '</span>' +
+              '<button type="button" aria-label="Increase" onclick="stepProduct(' + keyArg + ',1)">+</button>' +
+            '</div>'
+          : '<button class="add-btn" type="button" onclick="addProduct(' + keyArg + ')">Add to order</button>';
+        var negotiated = product.hasClinicPrice && Number(product.clinicPrice) > 0;
+        var tags =
+          '<span class="chip category">' + escapeHtml(categoryFor(product)) + '</span>' +
+          (negotiated
+            ? '<span class="chip bulk">Negotiated Pricing' +
+                (Number(product.clinicMinQty) > 1 ? ' &middot; ' + Number(product.clinicMinQty) + '+ vials' : '') +
+              '</span>'
+            : (bulk && !sale ? '<span class="chip bulk">Bulk Pricing</span>' : '')) +
+          (!negotiated && sale ? '<span class="chip sale">On Sale</span>' : '');
+        return '<article class="card product-card">' +
+          '<div class="product-main">' +
+            '<div class="product-tags">' + tags + '</div>' +
+            '<h3>' + escapeHtml(product.name) + '</h3>' +
+            '<p>' + escapeHtml([product.strength, product.vial].filter(Boolean).join(' · ')) + '</p>' +
+          '</div>' +
+          '<div class="product-actions">' +
+            '<div class="product-price">' + money(negotiated ? Number(product.clinicPrice) : price) +
+              (negotiated
+                ? (Number(product.clinicPrice) < Number(product.price) ? ' <s>' + money(product.price) + '</s>' : '')
+                : (sale ? ' <s>' + money(product.price) + '</s>' : '')) + '</div>' +
+            control +
+          '</div>' +
+        '</article>';
+      }).join('') || '<div class="message-box">No products match that search.</div>';
+    }
+
+    function findProduct(key) {
+      return state.products.find(function(product) { return productKey(product) === key; });
+    }
+
+    function addProduct(key, quantity) {
+      var product = findProduct(key);
+      if (!product) return;
+      var current = state.cart[key] ? state.cart[key].quantity : 0;
+      state.cart[key] = { product: product, quantity: current + (Number(quantity) || 1) };
+      renderCart();
+    }
+
+    function updateQuantity(key, value) {
+      var quantity = Math.max(0, parseInt(value, 10) || 0);
+      if (!quantity) delete state.cart[key];
+      else state.cart[key].quantity = quantity;
+      renderCart();
+    }
+
+    function removeCartItem(key) {
+      delete state.cart[key];
+      renderCart();
+    }
+
+    function bestBulkRule(product, quantity) {
+      var rules = Array.isArray(product.bulkPricing) ? product.bulkPricing : [];
+      return rules.reduce(function(best, rule) {
+        var min = Number(rule.minQty || 0);
+        var max = Number(rule.maxQty || 999999);
+        if (quantity >= min && quantity <= max && (!best || min > Number(best.minQty || 0))) return rule;
+        return best;
+      }, null);
+    }
+
+    function priceCartItem(item) {
+      var product = item.product;
+      var qty = item.quantity;
+      var list = Number(product.price || 0);
+      var bulk = bestBulkRule(product, qty);
+      var sale = product.onSale && Number(product.salePrice) > 0 && Number(product.salePrice) < list;
+      // A clinic's negotiated pricing is delivered as a bulk-style qty tier, so
+      // it must still win the way bulk normally would. A real bulk-qty tier,
+      // though, should not apply on top of an active sale — the sale wins.
+      var useBulk = bulk && (product.hasClinicPrice || !sale);
+      var net = useBulk ? Number(bulk.unitPrice || list) : (sale ? Number(product.salePrice) : list);
+      var type = useBulk ? (product.hasClinicPrice ? 'Negotiated' : 'Bulk') : (sale ? 'Sale' : 'Regular');
+      var tier = useBulk ? (bulk.tierLabel || '') : '';
+      return {
+        list: list, net: net, line: net * qty, regularLine: list * qty,
+        type: type, tier: tier, bulkPrice: useBulk ? net : 0,
+        salePrice: sale ? Number(product.salePrice) : 0
+      };
+    }
+
+    function renderCart() {
+      var keys = Object.keys(state.cart);
+      var totalQty = 0;
+      var subtotal = 0;
+      var savings = 0;
+      var html = keys.map(function(key) {
+        var item = state.cart[key];
+        var pricing = priceCartItem(item);
+        totalQty += item.quantity;
+        subtotal += pricing.regularLine;
+        savings += pricing.regularLine - pricing.line;
+        return '<div class="cart-item">' +
+          '<div class="cart-item-top"><div><strong>' + escapeHtml(item.product.name) + '</strong><small>' +
+          escapeHtml([item.product.strength, item.product.vial].filter(Boolean).join(' · ')) +
+          (pricing.type !== 'Regular' ? ' · ' + escapeHtml(pricing.type + (pricing.tier ? ' ' + pricing.tier : '')) : '') +
+          '</small></div><button class="danger-btn" type="button" aria-label="Remove product" onclick="removeCartItem(decodeURIComponent(\'' + encodeURIComponent(key) + '\'))">×</button></div>' +
+          '<div class="cart-item-controls"><label style="margin:0">Qty</label><input type="number" min="1" value="' + item.quantity +
+          '" onchange="updateQuantity(decodeURIComponent(\'' + encodeURIComponent(key) + '\'),this.value)"><span class="cart-item-price">' + money(pricing.line) + '</span></div></div>';
+      }).join('');
+
+      document.getElementById('cartItems').innerHTML = html || '<div class="empty-cart">Your order is empty.<br>Add products from the live catalog.</div>';
+      renderCartBulkPricing();
+      document.getElementById('cartCount').textContent = totalQty + (totalQty === 1 ? ' item' : ' items');
+      var shipping = document.querySelector('input[name="shipping"]:checked');
+      var shippingCost = shipping && shipping.value === 'RUSH' ? 30 : 0;
+      var total = Math.max(subtotal - savings, 0) + shippingCost;
+      document.getElementById('cartSubtotal').textContent = money(subtotal);
+      document.getElementById('cartSavings').textContent = money(-savings);
+      document.getElementById('cartShipping').textContent = money(shippingCost);
+      document.getElementById('cartTotal').textContent = money(total);
+      var locEl = document.getElementById('orderLocation');
+      var cardEl = document.getElementById('orderCard');
+      var hasLocationSelected = !!(locEl && locEl.value);
+      var hasCardSelected = !!(cardEl && cardEl.value);
+      var fulfillmentReady = hasLocationSelected && hasCardSelected;
+      // B2 — same category-aware minimum the server and submitOrder() enforce,
+      // so the button never looks submittable when it isn't.
+      var minStatus = cartMinimumStatus();
+      document.getElementById('submitButton').disabled = !minStatus.ok || !fulfillmentReady;
+
+      // B1 — name the one condition currently holding submit back. Minimums
+      // first, then fulfillment. Empty cart shows nothing here — the static
+      // minimum note above the button already covers it.
+      var hintEl = document.getElementById('submitHint');
+      if (hintEl) {
+        var hintLines = [];
+        if (minStatus.hasItems) {
+          if (minStatus.otherShort) {
+            var needOther = STANDARD_MINIMUM - minStatus.otherQty;
+            hintLines.push('Add ' + needOther + ' more vial' + (needOther === 1 ? '' : 's') +
+              ' to reach the ' + STANDARD_MINIMUM + '-vial minimum.');
+          }
+          if (minStatus.oralShort) {
+            var needOral = ORAL_STRIPS_MINIMUM - minStatus.oralStripsQty;
+            hintLines.push('Add ' + needOral + ' more Oral Strip' + (needOral === 1 ? '' : 's') +
+              ' — ' + ORAL_STRIPS_MINIMUM + ' is the minimum for that product.');
+          }
+          if (!hintLines.length && !fulfillmentReady) {
+            if (!hasLocationSelected) {
+              hintLines.push((state.locations && state.locations.length)
+                ? 'Choose a ship-to location above.'
+                : 'Add a shipping location under Account before you can order.');
+            }
+            if (!hasCardSelected) {
+              hintLines.push((state.cards && state.cards.length)
+                ? 'Select which card to use above.'
+                : 'No payment card on file — your Fuze rep adds this. Contact them to enable ordering.');
+            }
+          }
+        }
+        hintEl.innerHTML = hintLines.join('<br>');
+        hintEl.classList.toggle('hidden', hintLines.length === 0);
+      }
+
+      // Mirror the order into the mobile sticky cart bar.
+      var bar = document.getElementById('cartBar');
+      if (bar) {
+        document.getElementById('cartBarCount').textContent = totalQty;
+        document.getElementById('cartBarItems').textContent = totalQty === 1 ? '1 item' : totalQty + ' items';
+        document.getElementById('cartBarTotal').textContent = money(total);
+        bar.classList.toggle('show', totalQty > 0);
+        if (totalQty === 0) closeCartSheet();
+      }
+
+      // Keep the in-place product steppers in sync with the cart.
+      if (state.products && state.products.length) renderProducts();
+
+      // B4 — save the in-progress cart (no-op until persistence is armed).
+      persistCart();
+    }
+
+    function stepProduct(key, delta) {
+      var current = state.cart[key] ? state.cart[key].quantity : 0;
+      var next = current + delta;
+      if (next <= 0) removeCartItem(key);
+      else if (state.cart[key]) updateQuantity(key, next);
+      else addProduct(key, next);
+    }
+
+    function openCartSheet() {
+      var aside = document.querySelector('aside.cart');
+      var scrim = document.getElementById('cartScrim');
+      if (aside) aside.classList.add('sheet-open');
+      if (scrim) scrim.classList.add('show');
+    }
+
+    function closeCartSheet() {
+      var aside = document.querySelector('aside.cart');
+      var scrim = document.getElementById('cartScrim');
+      if (aside) aside.classList.remove('sheet-open');
+      if (scrim) scrim.classList.remove('show');
+    }
+
+    function renderReorderCard() {
+      var card = document.getElementById('reorderCard');
+      if (!card) return;
+      var last = state.orders && state.orders.length ? state.orders[0] : null;
+      if (!last) { card.classList.add('hidden'); return; }
+      var bits = [last.orderDate];
+      var qty = Number(last.totalQuantity || 0);
+      if (qty) bits.push(qty + (qty === 1 ? ' vial' : ' vials'));
+      bits.push(money(last.total));
+      document.getElementById('reorderSummary').textContent = bits.filter(Boolean).join(' · ');
+      card.classList.remove('hidden');
+    }
+
+    function reorderLast() {
+      var last = state.orders && state.orders.length ? state.orders[0] : null;
+      if (last) quickReorder(last.orderNumber);
+    }
+
+    function onFulfillmentChange() {
+      renderCart();
+    }
+
+    function loadFulfillment() {
+      var clinic = state.clinic || {};
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || data.ok !== true) return;
+          state.locations = Array.isArray(data.locations) ? data.locations : [];
+          state.cards = Array.isArray(data.cards) ? data.cards : [];
+          renderFulfillment();
+        })
+        .withFailureHandler(function() {
+          state.locations = [];
+          state.cards = [];
+          renderFulfillment();
+        })
+        .getClinicPortalLocationsAndCards(state.token, clinic.clinicId || '');
+    }
+
+    function renderFulfillment() {
+      var locEl = document.getElementById('orderLocation');
+      var cardEl = document.getElementById('orderCard');
+      if (!locEl || !cardEl) return;
+
+      var prevLoc = locEl.value;
+      var prevCard = cardEl.value;
+
+      locEl.innerHTML = '<option value="">Select a location…</option>' +
+        state.locations.map(function(loc) {
+          var label = loc.locationName + (loc.addressOneLine ? ' — ' + loc.addressOneLine : '');
+          return '<option value="' + escapeHtml(loc.locationId) + '">' + escapeHtml(label) + '</option>';
+        }).join('');
+
+      cardEl.innerHTML = '<option value="">Select a card…</option>' +
+        state.cards.map(function(card) {
+          return '<option value="' + escapeHtml(card.cardId) + '">' + escapeHtml(card.label) + '</option>';
+        }).join('');
+
+      // Restore prior selections, or auto-select when there is exactly one.
+      if (prevLoc && state.locations.some(function(l){ return l.locationId === prevLoc; })) {
+        locEl.value = prevLoc;
+      } else if (state.locations.length === 1) {
+        locEl.value = state.locations[0].locationId;
+      }
+      if (prevCard && state.cards.some(function(c){ return c.cardId === prevCard; })) {
+        cardEl.value = prevCard;
+      } else if (state.cards.length === 1) {
+        cardEl.value = state.cards[0].cardId;
+      }
+
+      // B4 — a resumed session's saved location/card selection wins if it is
+      // still a valid option. Cleared once applied so it only happens once.
+      if (pendingFulfillmentRestore) {
+        if (pendingFulfillmentRestore.locationId &&
+            state.locations.some(function(l){ return l.locationId === pendingFulfillmentRestore.locationId; })) {
+          locEl.value = pendingFulfillmentRestore.locationId;
+        }
+        if (pendingFulfillmentRestore.cardId &&
+            state.cards.some(function(c){ return c.cardId === pendingFulfillmentRestore.cardId; })) {
+          cardEl.value = pendingFulfillmentRestore.cardId;
+        }
+        pendingFulfillmentRestore = null;
+      }
+
+      var note = document.getElementById('fulfillmentNote');
+      if (note) {
+        var msgs = [];
+        if (!state.locations.length) {
+          msgs.push('No shipping location on file — add one in <strong>Account</strong> before ordering.');
+        }
+        if (!state.cards.length) {
+          msgs.push('No card on file — your Fuze rep must add one before you can order.');
+        }
+        note.innerHTML = msgs.join('<br>');
+        note.style.display = msgs.length ? 'block' : 'none';
+      }
+
+      renderLocationsList();
+      renderCart();
+    }
+
+    function renderLocationsList() {
+      var list = document.getElementById('locationsList');
+      if (!list) return;
+      if (!state.locations.length) {
+        list.innerHTML = '<div class="empty-cart">No locations yet. Add one to start ordering.</div>';
+        return;
+      }
+      list.innerHTML = state.locations.map(function(loc) {
+        return '<div class="location-row">' +
+          '<div><strong>' + escapeHtml(loc.locationName) + '</strong><small>' + escapeHtml(loc.addressOneLine || '') + '</small></div>' +
+          '<div class="location-row-actions">' +
+          '<button class="ghost-btn" type="button" onclick="editLocation(decodeURIComponent(\'' + encodeURIComponent(loc.locationId) + '\'))">Edit</button>' +
+          '<button class="remove-btn" type="button" onclick="removeLocation(decodeURIComponent(\'' + encodeURIComponent(loc.locationId) + '\'))">Remove</button>' +
+          '</div></div>';
+      }).join('');
+    }
+
+    function openLocationForm() {
+      document.getElementById('locationFormId').value = '';
+      ['locName','locAddr1','locAddr2','locCity','locState','locZip'].forEach(function(id){ document.getElementById(id).value=''; });
+      setStatus('locationFormStatus', '');
+      document.getElementById('locationFormWrap').classList.remove('hidden');
+    }
+
+    function closeLocationForm() {
+      document.getElementById('locationFormWrap').classList.add('hidden');
+    }
+
+    function editLocation(locationId) {
+      var loc = state.locations.filter(function(l){ return l.locationId === locationId; })[0];
+      if (!loc) return;
+      document.getElementById('locationFormId').value = loc.locationId;
+      document.getElementById('locName').value = loc.locationName || '';
+      document.getElementById('locAddr1').value = loc.address1 || '';
+      document.getElementById('locAddr2').value = loc.address2 || '';
+      document.getElementById('locCity').value = loc.city || '';
+      document.getElementById('locState').value = loc.state || '';
+      document.getElementById('locZip').value = loc.zip || '';
+      setStatus('locationFormStatus', '');
+      document.getElementById('locationFormWrap').classList.remove('hidden');
+    }
+
+    function saveLocation() {
+      var payload = {
+        locationName: document.getElementById('locName').value.trim(),
+        address1: document.getElementById('locAddr1').value.trim(),
+        address2: document.getElementById('locAddr2').value.trim(),
+        city: document.getElementById('locCity').value.trim(),
+        state: document.getElementById('locState').value.trim(),
+        zip: document.getElementById('locZip').value.trim()
+      };
+      var locationId = document.getElementById('locationFormId').value;
+      var clinicId = (state.clinic && state.clinic.clinicId) || '';
+      setStatus('locationFormStatus', 'Saving…');
+      var handler = function(res) {
+        if (res && res.locations) state.locations = res.locations;
+        closeLocationForm();
+        renderFulfillment();
+      };
+      var fail = function(err) {
+        setStatus('locationFormStatus', (err && err.message) || 'Could not save the location.', 'error');
+      };
+      if (locationId) {
+        google.script.run.withSuccessHandler(handler).withFailureHandler(fail)
+          .updateClinicPortalLocation(state.token, clinicId, locationId, payload);
+      } else {
+        google.script.run.withSuccessHandler(handler).withFailureHandler(fail)
+          .addClinicPortalLocation(state.token, clinicId, payload);
+      }
+    }
+
+    function removeLocation(locationId) {
+      if (!confirm('Remove this location?')) return;
+      var clinicId = (state.clinic && state.clinic.clinicId) || '';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.locations) state.locations = res.locations;
+          renderFulfillment();
+        })
+        .withFailureHandler(function(err) {
+          alert((err && err.message) || 'Could not remove the location.');
+        })
+        .deactivateClinicPortalLocation(state.token, clinicId, locationId);
+    }
+
+    function renderCartBulkPricing() {
+      var container = document.getElementById('cartBulkPricing');
+      var panels = Object.keys(state.cart).map(function(key) {
+        var item = state.cart[key];
+        var rules = Array.isArray(item.product.bulkPricing)
+          ? item.product.bulkPricing.slice()
+          : [];
+
+        if (!rules.length) return '';
+
+        // An active sale wins over a bulk-qty tier, so don't show the bulk
+        // panel (and its "add N more to unlock" nudge) for a sale product —
+        // it would advertise a tier that won't actually be applied.
+        var onSale = !item.product.hasClinicPrice &&
+          item.product.onSale &&
+          Number(item.product.salePrice) > 0 &&
+          Number(item.product.salePrice) < Number(item.product.price);
+        if (onSale) return '';
+
+        rules.sort(function(a, b) {
+          return Number(a.minQty || 0) - Number(b.minQty || 0);
+        });
+
+        var currentRule = bestBulkRule(item.product, item.quantity);
+        var nextRule = rules.find(function(rule) {
+          return item.quantity < Number(rule.minQty || 0);
+        });
+
+        var tiers = rules.map(function(rule) {
+          var min = Number(rule.minQty || 0);
+          var max = Number(rule.maxQty || 0);
+          var label = rule.tierLabel ||
+            (max >= 9999 || !max ? min + '+ vials' : min + '–' + max + ' vials');
+          var isActive = currentRule &&
+            Number(currentRule.minQty || 0) === min &&
+            Number(currentRule.maxQty || 0) === max;
+
+          return '<div class="cart-bulk-tier' + (isActive ? ' active' : '') + '">' +
+            '<strong>' + escapeHtml(label) + '</strong>' +
+            money(rule.unitPrice) + ' each' +
+          '</div>';
+        }).join('');
+
+        var nextMessage = '';
+        if (nextRule) {
+          var nextMin = Number(nextRule.minQty || 0);
+          var needed = Math.max(nextMin - item.quantity, 0);
+          var pct = nextMin > 0 ? Math.min(100, Math.round(item.quantity / nextMin * 100)) : 0;
+          nextMessage = '<div class="cart-bulk-next">Add <strong>' + needed +
+            '</strong> more vial' + (needed === 1 ? '' : 's') +
+            ' to unlock <strong>' + money(nextRule.unitPrice) + ' each</strong>.</div>' +
+            '<div class="bulk-progress"><div class="track"><i style="width:' + pct + '%"></i></div></div>';
+        } else if (currentRule) {
+          nextMessage = '<div class="cart-bulk-next"><strong>' +
+            (item.product.hasClinicPrice ? 'Negotiated price applied.' : 'Best available bulk tier applied.') +
+            '</strong></div>';
+        }
+
+        return '<section class="cart-bulk-panel">' +
+          '<span class="cart-bulk-label">' +
+          (item.product.hasClinicPrice ? 'Negotiated pricing available' : 'Bulk pricing available') + '</span>' +
+          '<div class="cart-bulk-title">' + escapeHtml(productDisplay(item.product)) + '</div>' +
+          '<div class="cart-bulk-tiers">' + tiers + '</div>' +
+          nextMessage +
+        '</section>';
+      }).filter(Boolean);
+
+      container.innerHTML = panels.join('');
+      container.classList.toggle('hidden', panels.length === 0);
+    }
+
+    function orderRows(orders, compact) {
+      if (!orders.length) return '<div class="message-box">No previous orders found.</div>';
+      return orders.map(function(order) {
+        var productCount = Number(order.productCount || 0);
+        var totalQuantity = Number(order.totalQuantity || 0);
+        var details = [];
+
+        if (productCount) {
+          details.push(productCount + (productCount === 1 ? ' product' : ' products'));
+        }
+
+        if (totalQuantity) {
+          details.push(totalQuantity + (totalQuantity === 1 ? ' vial' : ' vials'));
+        }
+
+        if (order.shipping) {
+          details.push(order.shipping + ' shipping');
+        }
+
+        return '<article class="order-row"><div><strong>' + escapeHtml(order.orderNumber) + ' · ' + escapeHtml(order.orderDate) +
+          '</strong><small>' + escapeHtml(details.join(' · ') || 'Order summary') +
+          '</small></div><span class="order-total">' + money(order.total) + '</span>' +
+          '<button class="secondary-btn" type="button" onclick="quickReorder(\'' + escapeHtml(order.orderNumber) + '\')">Reorder</button></article>';
+      }).join('');
+    }
+
+    function renderRecentOrders() {
+      document.getElementById('recentOrders').innerHTML = orderRows(state.orders.slice(0, 3), true);
+      renderReorderCard();
+    }
+
+    function renderHistory() {
+      document.getElementById('historyOrders').innerHTML = orderRows(state.orders, false);
+    }
+
+    function quickReorder(orderNumber) {
+      var order = state.orders.find(function(row) { return row.orderNumber === orderNumber; });
+      if (!order) return;
+
+      showTab('order');
+
+      if (!state.products.length) {
+        setStatus('orderStatus', 'Live products are still loading. Please try Reorder again in a moment.', 'error');
+        return;
+      }
+
+      setStatus('orderStatus', 'Loading ' + orderNumber + '…');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (!response || response.ok !== true) {
+            setStatus('orderStatus', 'The previous order could not be loaded.', 'error');
+            return;
+          }
+
+          state.cart = {};
+          var unavailableProducts = [];
+
+          (response.items || []).forEach(function(item) {
+            var product = state.products.find(function(candidate) {
+              return String(candidate.name || '').toLowerCase() ===
+                  String(item.productName || item.name || '').split(' - ')[0].toLowerCase() &&
+                String(candidate.strength || '').toLowerCase() === String(item.strength || '').toLowerCase() &&
+                String(candidate.vial || '').toLowerCase() === String(item.vial || '').toLowerCase();
+            });
+
+            if (!product) {
+              product = state.products.find(function(candidate) {
+                return String(item.name || '').toLowerCase().indexOf(
+                  String(candidate.name || '').toLowerCase()
+                ) !== -1;
+              });
+            }
+
+            if (product) {
+              var key = productKey(product);
+              var currentQuantity = state.cart[key] ? state.cart[key].quantity : 0;
+              state.cart[key] = {
+                product: product,
+                quantity: currentQuantity + (Number(item.qty || 1))
+              };
+            } else {
+              unavailableProducts.push(item.name || item.productName || 'Unknown product');
+            }
+          });
+
+          document.getElementById('orderNotes').value = response.notes || '';
+          var shipping = response.shipping === 'RUSH' ? 'RUSH' : 'Normal';
+          var shippingInput = document.querySelector(
+            'input[name="shipping"][value="' + shipping + '"]'
+          );
+
+          if (shippingInput) shippingInput.checked = true;
+
+          renderCart();
+
+          if (unavailableProducts.length) {
+            setStatus(
+              'orderStatus',
+              'The available products were added. These older products are no longer in the live catalog: ' +
+                unavailableProducts.join(', ') + '.',
+              'error'
+            );
+          } else {
+            setStatus(
+              'orderStatus',
+              'Previous order added. Review current pricing and quantities before submitting.',
+              'success'
+            );
+          }
+        })
+        .withFailureHandler(function(error) {
+          setStatus(
+            'orderStatus',
+            error && error.message
+              ? error.message
+              : 'The previous order could not be loaded.',
+            'error'
+          );
+        })
+        .getClinicPortalOrderDetailsV2(
+          state.token,
+          state.clinic.clinicId || '',
+          orderNumber
+        );
+    }
+
+    function submitOrder() {
+      var keys = Object.keys(state.cart);
+
+      // B2 — defense in depth: same check renderCart() uses to gate the button.
+      var minStatus = cartMinimumStatus();
+
+      if (!minStatus.hasItems) {
+        setStatus('orderStatus', 'Please add at least one product to your order.', 'error');
+        return;
+      }
+
+      if (minStatus.oralShort) {
+        setStatus('orderStatus', 'Please order at least ' + ORAL_STRIPS_MINIMUM + ' Oral Strips.', 'error');
+        return;
+      }
+
+      if (minStatus.otherShort) {
+        setStatus('orderStatus', 'Please order at least ' + STANDARD_MINIMUM + ' vials.', 'error');
+        return;
+      }
+
+      var grossSubtotal = 0;
+      var totalDiscount = 0;
+      var itemSummary = [];
+      var rawItems = keys.map(function(key) {
+        var cartItem = state.cart[key];
+        var product = cartItem.product;
+        var qty = cartItem.quantity;
+        var pricing = priceCartItem(cartItem);
+        grossSubtotal += pricing.regularLine;
+        totalDiscount += pricing.regularLine - pricing.line;
+        var display = productDisplay(product);
+        itemSummary.push(display + ' (x' + qty + ')');
+        return {
+          name: display,
+          productName: product.name || '',
+          strength: product.strength || '',
+          vial: product.vial || '',
+          qty: qty,
+          price: pricing.list.toFixed(2),
+          saleApplied: pricing.type === 'Sale',
+          salePrice: pricing.salePrice ? pricing.salePrice.toFixed(2) : '',
+          unitPriceAfterSale: pricing.net.toFixed(2),
+          volumeDiscountPerItem: '0.00',
+          netUnitPrice: pricing.net.toFixed(2),
+          lineSubtotal: pricing.line.toFixed(2),
+          pricingType: pricing.type,
+          pricingTier: pricing.tier,
+          bulkUnitPrice: pricing.bulkPrice ? pricing.bulkPrice.toFixed(2) : ''
+        };
+      });
+
+      var locationId = document.getElementById('orderLocation').value;
+      var cardId = document.getElementById('orderCard').value;
+      if (!locationId) {
+        setStatus('orderStatus', 'Select which location this order ships to.', 'error');
+        return;
+      }
+      if (!cardId) {
+        setStatus('orderStatus', 'Select which card to use for this order.', 'error');
+        return;
+      }
+
+      var shippingEl = document.querySelector('input[name="shipping"]:checked');
+      var shipping = shippingEl ? shippingEl.value : 'Normal';
+      var shippingCost = shipping === 'RUSH' ? 30 : 0;
+      var finalTotal = Math.max(grossSubtotal - totalDiscount, 0) + shippingCost;
+      var clinic = state.clinic;
+      var payload = {
+        token: state.token,
+        clinicId: clinic.clinicId || '',
+        clinicName: clinic.clinicName || '',
+        salespersonId: clinic.salespersonId || '',
+        phone: clinic.phone || '',
+        locationId: locationId,
+        cardId: cardId,
+        notes: document.getElementById('orderNotes').value.trim(),
+        shipping: shipping,
+        itemSummary: itemSummary.join(', '),
+        total: money(finalTotal),
+        rawItems: JSON.stringify(rawItems)
+      };
+
+      document.getElementById('submitButton').disabled = true;
+      setStatus('orderStatus', 'Submitting your order…');
+      google.script.run
+        .withSuccessHandler(function(response) {
+          state.cart = {};
+          clearCart();
+          document.getElementById('orderNotes').value = '';
+          var submitHintEl = document.getElementById('submitHint');
+          if (submitHintEl) { submitHintEl.textContent = ''; submitHintEl.classList.add('hidden'); }
+          renderCart();
+          document.getElementById('successMessage').textContent =
+            'Order ' + ((response && response.orderNumber) || '') +
+            ' has been logged successfully. The Fuze Pharma team will handle payment separately.';
+          showTab('success');
+          refreshPortalData();
+        })
+        .withFailureHandler(function(error) {
+          renderCart();
+          setStatus('orderStatus', error && error.message ? error.message : 'The order could not be submitted.', 'error');
+        })
+        .saveOrder(payload);
+    }
+
+    function refreshPortalData() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || data.ok !== true) return;
+          state.orders = Array.isArray(data.orders) ? data.orders : state.orders;
+          renderOrderSummary();
+          renderRecentOrders();
+          renderHistory();
+        })
+        .withFailureHandler(function(error) {
+          console.error(
+            error && error.message
+              ? error.message
+              : 'Unable to refresh order history.'
+          );
+          // B3 — the order went through; only the in-portal history refresh
+          // failed. Say so on the success screen instead of failing silently.
+          var successEl = document.getElementById('successMessage');
+          if (successEl) {
+            successEl.textContent += ' Your order history here will update the next time you open the portal.';
+          }
+        })
+        .getClinicPortalOrdersV2(
+          state.token,
+          state.clinic.clinicId || '',
+          50
+        );
+    }
+
+    function finishSuccess() {
+      hydratePortal();
+      showTab('overview');
+    }
+
+    function logoutClinic() {
+      clearSession();
+      clearCart();
+      cartPersistArmed = false;
+      pendingCartRestore = null;
+      pendingFulfillmentRestore = null;
+      state = { email:'', token:'', clinic:null, products:[], orders:[], messages:{}, specials:[], cart:{}, locations:[], cards:[], activeTab:'overview' };
+      var logoutHintEl = document.getElementById('submitHint');
+      if (logoutHintEl) { logoutHintEl.textContent = ''; logoutHintEl.classList.add('hidden'); }
+      document.getElementById('lookupForm').reset();
+      document.getElementById('passwordSetupBlock').classList.add('hidden');
+      document.getElementById('loginFormBlock').classList.remove('hidden');
+      setStatus('lookupStatus', '');
+      document.getElementById('portal').classList.add('hidden');
+      document.getElementById('entryPage').classList.remove('hidden');
+      window.scrollTo(0, 0);
+    }
+
+    // A1 — on load, if we have a stored token, try to resume the session
+    // silently. Success drops the clinic straight into the portal (mirrors
+    // the full-login success path); any failure clears the stash and falls
+    // through to the normal login screen.
+    (function tryResumeSession() {
+      var saved = loadSession();
+      if (!saved || !saved.token) return;
+      state.email = saved.email || '';
+      state.token = saved.token;
+      // B4 — hold the saved cart so restorePendingCart() can rehydrate it once
+      // the live catalog is in. Persistence stays disarmed until then so the
+      // first empty renderCart() on load can't overwrite it.
+      pendingCartRestore = loadStoredCart();
+      cartPersistArmed = false;
+      setStatus('lookupStatus', 'Restoring your session…');
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || data.ok !== true) {
+            clearSession();
+            clearCart();
+            pendingCartRestore = null;
+            state.token = '';
+            setStatus('lookupStatus', '');
+            return;
+          }
+          state.clinic = data.clinic || {};
+          state.token = data.token || state.token;
+          state.products = [];
+          state.orders = [];
+          state.messages = {};
+          state.specials = [];
+          hydratePortal();
+          document.getElementById('productGrid').innerHTML =
+            '<div class="message-box">Loading live products and pricing…</div>';
+          document.getElementById('recentOrders').innerHTML =
+            '<div class="message-box">Loading recent orders…</div>';
+          document.getElementById('historyOrders').innerHTML =
+            '<div class="message-box">Loading order history…</div>';
+          loadPortalDetails();
+        })
+        .withFailureHandler(function() {
+          clearSession();
+          clearCart();
+          pendingCartRestore = null;
+          state.token = '';
+          setStatus('lookupStatus', '');
+        })
+        .resumeClinicPortalSession(state.token);
+    })();
+  </script>
+</body>
+</html>
